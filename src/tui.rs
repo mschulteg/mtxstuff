@@ -560,6 +560,9 @@ pub fn main_loop(
 
     let mut audio_tab_data = GroupTabData::new(groups_audio, TrackType::Audio);
     let mut sub_tab_data = GroupTabData::new(groups_subs, TrackType::Subtitles);
+    // Refresh keys which means that keys are copied to the editable area.
+    audio_tab_data.refresh_keys();
+    sub_tab_data.refresh_keys();
 
     loop {
         terminal.draw(|rect| {
