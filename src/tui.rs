@@ -4,6 +4,7 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
+use tui::Frame;
 use std::io;
 use std::sync::mpsc;
 use std::thread;
@@ -120,6 +121,71 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 //         self.selected()
 //     }
 // }
+
+trait Popup <T> where T: tui::backend::Backend{
+    fn render_widget(&mut self, frame: &mut Frame<T>, area: Rect);
+}
+
+struct PopupRenderer <T> where T: tui::backend::Backend{
+    popup_stack: Vec<Box<dyn Popup<T>>>
+}
+
+impl <T> PopupRenderer <T> where T: tui::backend::Backend{
+    fn render_stuff(&mut self, frame: &mut Frame<T>, area: Rect) {
+        for popup in self.popup_stack.iter_mut() {
+            popup.render_widget(frame, area);
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CommandPopup {
+    commands: Vec<String>
+}
+
+impl CommandPopup {
+    fn render(&mut self) -> List{
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Saved to mtx_commands.sh")
+            .border_type(BorderType::Thick);
+
+        let items: Vec<_> = {
+            self.commands
+                .iter()
+                .map(|item| {
+                    ListItem::new(Spans::from(vec![Span::styled(
+                        item.clone(),
+                        Style::default(),
+                    )]))
+                })
+                .collect()
+            };
+        let list = List::new(items).block(block).highlight_style(
+            Style::default()
+                .bg(Color::Yellow)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        );
+        list
+    }
+
+}
+
+impl <T> Popup<T> for CommandPopup where T: tui::backend::Backend{
+    fn render_widget(&mut self, frame: &mut Frame<T>, area: Rect) {
+        frame.render_widget(self.render(), area);
+    }
+}
+
+
+
+
+
+
+
+////
 
 #[derive(Clone)]
 struct PopupData {
