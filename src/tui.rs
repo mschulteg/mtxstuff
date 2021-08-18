@@ -122,26 +122,30 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 //     }
 // }
 
-trait Popup <T> where T: tui::backend::Backend{
-    fn render_widget(&mut self, frame: &mut Frame<T>, area: Rect);
+use std::io::Stdout;
+trait Popup {
+    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect);
 }
 
-struct PopupRenderer <T> where T: tui::backend::Backend{
-    popup_stack: Vec<Box<dyn Popup<T>>>
+//#[derive(Clone)]
+struct PopupRenderer {
+    popup_stack: Vec<Box<dyn Popup>>
 }
 
-impl <T> PopupRenderer <T> where T: tui::backend::Backend{
-    fn render_stuff(&mut self, frame: &mut Frame<T>, area: Rect) {
+impl PopupRenderer {
+    fn render_stuff(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         for popup in self.popup_stack.iter_mut() {
             popup.render_widget(frame, area);
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct CommandPopup {
-    commands: Vec<String>
+    commands: Vec<String>,
+    list_state: ListState,
 }
+
 
 impl CommandPopup {
     fn render(&mut self) -> List{
@@ -173,8 +177,8 @@ impl CommandPopup {
 
 }
 
-impl <T> Popup<T> for CommandPopup where T: tui::backend::Backend{
-    fn render_widget(&mut self, frame: &mut Frame<T>, area: Rect) {
+impl Popup for CommandPopup {
+    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         frame.render_widget(self.render(), area);
     }
 }
@@ -187,18 +191,6 @@ impl <T> Popup<T> for CommandPopup where T: tui::backend::Backend{
 
 ////
 
-#[derive(Clone)]
-struct PopupData {
-    commands: Vec<String>
-}
-
-impl PopupData {
-    fn new(commands: Vec<String>) -> Self {
-        PopupData {
-            commands
-        }
-    }
-}
 
 #[derive(Clone, Default)]
 struct EnhancedTableState {
@@ -217,34 +209,30 @@ impl EnhancedTableState {
     }
 }
 
-#[derive(Clone)]
+//#[derive(Clone)]
 struct GroupTabData<'a> {
     list_state: ListState,
     table_state: EnhancedTableState,
-    popup_list_state: ListState,
     groups: &'a [Group<'a>],
     active_widget: ActiveWidget,
-    popup_data: Option<PopupData>,
+    popup_data: PopupRenderer,
     track_type: TrackType,
 }
 
 use std::fs::File;
 use std::io::prelude::*;
-impl<'a> GroupTabData<'a> {
+impl<'a> GroupTabData<'a>{
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         let mut list_state = ListState::default();
-        let mut popup_list_state = ListState::default();
         let mut table_state = EnhancedTableState::default();
         list_state.select(if !groups.is_empty() { Some(0) } else { None });
-        popup_list_state.select(None);
         table_state.select(None);
         GroupTabData {
             list_state,
             table_state,
-            popup_list_state,
             groups,
             active_widget: ActiveWidget::Groups,
-            popup_data: None,
+            popup_data: PopupRenderer{popup_stack: Vec::new()},
             track_type,
         }
     }
@@ -260,7 +248,9 @@ impl<'a> GroupTabData<'a> {
             file.write_all(b"\n").unwrap();
         }
         self.active_widget = ActiveWidget::Popup;
-        self.popup_data = Some(PopupData::new(strings));
+        let mut command_popup = CommandPopup::default();
+        command_popup.commands.extend(strings);
+        self.popup_data.popup_stack.push(Box::new(command_popup));
     }
 
     fn refresh_keys(&mut self){
@@ -393,35 +383,6 @@ impl<'a> GroupTabData<'a> {
         }
     }
 
-    fn render_popup(&self) -> List<'a> {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("Saved to mtx_commands.sh")
-            .border_type(BorderType::Thick);
-
-        let items: Vec<_> = if let Some(popup_data) = &self.popup_data {
-            popup_data.commands
-                .iter()
-                .map(|item| {
-                    ListItem::new(Spans::from(vec![Span::styled(
-                        item.clone(),
-                        Style::default(),
-                    )]))
-                })
-                .collect()
-            } else {
-                Vec::<_>::new()
-            };
-
-        let list = List::new(items).block(block).highlight_style(
-            Style::default()
-                .bg(Color::Yellow)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
-        list
-    }
 
     fn render_details(&self) -> Table<'a> {
         let highlight_style = Style::default()
@@ -703,7 +664,7 @@ pub fn main_loop(
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
                     let popup_area = centered_rect(80, 80, chunks[1]);
                     rect.render_widget(Clear, popup_area);
-                    rect.render_widget(tab_data.render_popup(), popup_area);
+                    tab_data.popup_data.render_stuff(rect, popup_area);
                 }
             };
 
