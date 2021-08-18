@@ -329,8 +329,6 @@ impl<'a> GroupTabData<'a>{
             } else {
                 self.select(Some(0))
             }
-            self.table_state.select(Some(0));
-            self.active_widget = ActiveWidget::Details;
         }
         if self.active_widget == ActiveWidget::DetailsItems {
             if let Some(selected_col) = self.table_state.selected_col {
