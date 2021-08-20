@@ -1,14 +1,14 @@
+use super::file::TrackType;
 use super::group::{Group, GroupKey};
-use super::file::{TrackType};
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use tui::Frame;
 use std::io;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
+use tui::Frame;
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -133,8 +133,7 @@ trait Popup {
         None
     }
 
-    fn select(&mut self, index: Option<usize>) {
-    }
+    fn select(&mut self, index: Option<usize>) {}
 
     fn length(&self) -> usize {
         0
@@ -143,7 +142,7 @@ trait Popup {
 
 //#[derive(Clone)]
 struct PopupRenderer {
-    popup_stack: Vec<Box<dyn Popup>>
+    popup_stack: Vec<Box<dyn Popup>>,
 }
 
 impl PopupRenderer {
@@ -160,9 +159,8 @@ struct CommandPopup {
     list_state: ListState,
 }
 
-
 impl CommandPopup {
-    fn render(&mut self) -> List{
+    fn render(&mut self) -> List {
         let block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -179,7 +177,7 @@ impl CommandPopup {
                     )]))
                 })
                 .collect()
-            };
+        };
         let list = List::new(items).block(block).highlight_style(
             Style::default()
                 .bg(SEL_COLOR)
@@ -188,7 +186,6 @@ impl CommandPopup {
         );
         list
     }
-
 }
 
 impl Popup for CommandPopup {
@@ -201,9 +198,6 @@ impl Popup for CommandPopup {
     }
 }
 
-
-
-
 #[derive(Clone, Default)]
 struct GroupFilesListWidget {
     list_state: ListState,
@@ -213,12 +207,22 @@ struct GroupFilesListWidget {
 impl GroupFilesListWidget {
     fn set_filenames(&mut self, group: &Group) {
         self.file_names.clear();
-        self.file_names.extend(group.files.iter().map(|file|file.file_name.clone()));
+        self.file_names
+            .extend(group.files.iter().map(|file| file.file_name.clone()));
     }
 
-    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect) {
+    fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
         // Group files
-        let group_files_items: Vec<_> = self.file_names.iter().map(|file_name| ListItem::new(Spans::from(vec![Span::styled(file_name.clone(), Style::default(),)]))).collect();
+        let group_files_items: Vec<_> = self
+            .file_names
+            .iter()
+            .map(|file_name| {
+                ListItem::new(Spans::from(vec![Span::styled(
+                    file_name.clone(),
+                    Style::default(),
+                )]))
+            })
+            .collect();
 
         let group_files = List::new(group_files_items)
             .block(
@@ -238,8 +242,6 @@ impl GroupFilesListWidget {
     }
 }
 
-
-
 #[derive(Clone, Default)]
 struct GroupListWidget {
     list_state: ListState,
@@ -247,7 +249,12 @@ struct GroupListWidget {
 
 impl GroupListWidget {
     //TODO: remove groups, maybe keep a copy
-    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect, num_groups: usize) {
+    fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        num_groups: usize,
+    ) {
         let groupnames_block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -275,7 +282,6 @@ impl GroupListWidget {
     }
 }
 
-
 #[derive(Clone, Default)]
 struct TrackTableWidget {
     table_state: TableState,
@@ -293,23 +299,27 @@ impl TrackTableWidget {
         self.table_state.selected()
     }
 
-    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect) {
+    fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
         let highlight_style = Style::default()
             .bg(SEL_COLOR)
             .fg(Color::Black)
             .add_modifier(Modifier::BOLD);
-        
+
         let create_style = |item: &String, idx_col: usize, idx_row: usize| {
-            let mut style  = Style::default();
+            let mut style = Style::default();
             if let Some(sel_col) = self.selected_col {
                 if sel_col == idx_col && self.selected().unwrap() == idx_row {
-                    style = style.bg(SEL_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD);
+                    style = style
+                        .bg(SEL_COLOR)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD);
                 }
             }
-            if let Some(group_item) = self.keys_orig.get(idx_row)
-                .and_then(|r| r.row().get(idx_col).cloned()){
+            if let Some(group_item) = self
+                .keys_orig
+                .get(idx_row)
+                .and_then(|r| r.row().get(idx_col).cloned())
+            {
                 if group_item != *item {
                     style = style.add_modifier(Modifier::ITALIC);
                 }
@@ -317,15 +327,19 @@ impl TrackTableWidget {
             style
         };
 
-        let group_detail_rows: Vec<Row> = 
-            self.keys_copy.iter().enumerate().map(|(idx_row, keyrow)| {
+        let group_detail_rows: Vec<Row> = self
+            .keys_copy
+            .iter()
+            .enumerate()
+            .map(|(idx_row, keyrow)| {
                 Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
                     let cell = Cell::from(Span::raw(item.clone()));
                     cell.style(create_style(item, idx_col, idx_row))
                 }))
-            }).collect();
+            })
+            .collect();
 
-        let group_detail= Table::new(group_detail_rows);
+        let group_detail = Table::new(group_detail_rows);
         let group_detail = group_detail
             .header(Row::new(vec![
                 Cell::from(Span::styled(
@@ -372,11 +386,7 @@ impl TrackTableWidget {
         } else {
             group_detail
         };
-        frame.render_stateful_widget(
-            group_detail,
-            area,
-            &mut self.table_state,
-        );
+        frame.render_stateful_widget(group_detail, area, &mut self.table_state);
     }
 }
 
@@ -393,17 +403,21 @@ struct GroupTabData<'a> {
 
 use std::fs::File;
 use std::io::prelude::*;
-impl<'a> GroupTabData<'a>{
+impl<'a> GroupTabData<'a> {
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         let mut group_list = GroupListWidget::default();
-        group_list.list_state.select(if !groups.is_empty() { Some(0) } else { None });
+        group_list
+            .list_state
+            .select(if !groups.is_empty() { Some(0) } else { None });
         GroupTabData {
             group_list,
             track_table: TrackTableWidget::default(),
             group_files_list: GroupFilesListWidget::default(),
             groups,
             active_widget: ActiveWidget::Groups,
-            popup_data: PopupRenderer{popup_stack: Vec::new()},
+            popup_data: PopupRenderer {
+                popup_stack: Vec::new(),
+            },
             track_type,
         }
     }
@@ -412,7 +426,7 @@ impl<'a> GroupTabData<'a>{
         let sel_group = self.selected_group().unwrap();
         let commands = sel_group.apply_changes(&self.track_table.keys_copy, self.track_type);
         let mut file = File::create("mtx_commands.sh").unwrap();
-        let strings: Vec<_> = commands.iter().map(|cmd|cmd.to_cmd_string()).collect();
+        let strings: Vec<_> = commands.iter().map(|cmd| cmd.to_cmd_string()).collect();
         file.write_all(b"#!/bin/sh\n").unwrap();
         for cmd in strings.iter() {
             file.write_all(cmd.as_bytes()).unwrap();
@@ -424,7 +438,7 @@ impl<'a> GroupTabData<'a>{
         self.popup_data.popup_stack.push(Box::new(command_popup));
     }
 
-    fn refresh_keys(&mut self){
+    fn refresh_keys(&mut self) {
         self.track_table.keys_copy = if let Some(sel_group) = self.selected_group() {
             sel_group.key.clone()
         } else {
@@ -438,7 +452,7 @@ impl<'a> GroupTabData<'a>{
             ActiveWidget::Groups => {
                 self.group_list.list_state.select(index);
                 self.refresh_keys();
-            },
+            }
             ActiveWidget::Details => self.track_table.select(index),
             _ => {}
         }
@@ -453,10 +467,8 @@ impl<'a> GroupTabData<'a>{
         }
     }
 
-
     fn selected_group(&self) -> Option<&Group> {
-        self
-            .group_list
+        self.group_list
             .list_state
             .selected()
             .and_then(|selected| self.groups.get(selected))
@@ -507,7 +519,8 @@ impl<'a> GroupTabData<'a>{
         }
         if self.active_widget == ActiveWidget::DetailsItems {
             if let Some(selected_col) = self.track_table.selected_col {
-                if selected_col < 4 {// TODO: do not hard code
+                if selected_col < 4 {
+                    // TODO: do not hard code
                     self.track_table.selected_col = Some(selected_col + 1);
                 }
             }
@@ -532,14 +545,19 @@ impl<'a> GroupTabData<'a>{
         if self.active_widget == ActiveWidget::Details {
             self.active_widget = ActiveWidget::DetailsItems;
             self.track_table.selected_col = Some(0);
-        }
-        else if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(sel_row) = self.track_table.selected(){
+        } else if self.active_widget == ActiveWidget::DetailsItems {
+            if let Some(sel_row) = self.track_table.selected() {
                 let gkey = self.track_table.keys_copy.get_mut(sel_row).unwrap();
                 match self.track_table.selected_col.unwrap() {
-                    2 => {gkey.default = !gkey.default;}
-                    3 => {gkey.forced = !gkey.forced;}
-                    4 => {gkey.enabled = !gkey.enabled;}
+                    2 => {
+                        gkey.default = !gkey.default;
+                    }
+                    3 => {
+                        gkey.forced = !gkey.forced;
+                    }
+                    4 => {
+                        gkey.enabled = !gkey.enabled;
+                    }
                     _ => {}
                 }
             }
@@ -578,7 +596,7 @@ pub fn main_loop(
                 }
             }
 
-            if last_tick.elapsed() >= tick_rate && tx.send(Event::Tick).is_ok(){
+            if last_tick.elapsed() >= tick_rate && tx.send(Event::Tick).is_ok() {
                 last_tick = Instant::now();
             }
         }
@@ -661,9 +679,11 @@ pub fn main_loop(
                     .split(horiz_split[1]);
 
                 tab_data.group_files_list.render(rect, vert_split[1]);
-
                 tab_data.track_table.render(rect, vert_split[0]);
-                tab_data.group_list.render(rect, horiz_split[0], tab_data.groups.len());
+                tab_data
+                    .group_list
+                    .render(rect, horiz_split[0], tab_data.groups.len());
+
                 if tab_data.active_widget == ActiveWidget::Popup {
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
                     let popup_area = centered_rect(80, 80, chunks[1]);
