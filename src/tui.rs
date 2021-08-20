@@ -205,10 +205,19 @@ struct GroupFilesListWidget {
 }
 
 impl GroupFilesListWidget {
-    fn set_filenames(&mut self, group: &Group) {
+    fn from_group(group: Option<&Group>) -> Self {
+        let mut new = Self::default();
+        new.set_filenames(group);
+        new
+    }
+
+    fn set_filenames(&mut self, group: Option<&Group>) {
         self.file_names.clear();
-        self.file_names
-            .extend(group.files.iter().map(|file| file.file_name.clone()));
+        self.list_state = ListState::default();
+        if let Some(group) = group {
+            self.file_names
+                .extend(group.files.iter().map(|file| file.file_name.clone()));
+        }
     }
 
     fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
@@ -678,6 +687,11 @@ pub fn main_loop(
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(horiz_split[1]);
 
+                //TODO: check for alternatives - maybe only refresh on group selection change
+                //TODO: universal refresh function for each group selection change
+                //      can be called in refresh_keys
+                tab_data.group_files_list =
+                    GroupFilesListWidget::from_group(tab_data.selected_group());
                 tab_data.group_files_list.render(rect, vert_split[1]);
                 tab_data.track_table.render(rect, vert_split[0]);
                 tab_data
