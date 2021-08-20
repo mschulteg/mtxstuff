@@ -21,6 +21,8 @@ use tui::{
     Terminal,
 };
 
+const SEL_COLOR: Color = Color::LightCyan;
+
 enum Event<I> {
     Input(I),
     Tick,
@@ -168,7 +170,7 @@ impl CommandPopup {
             };
         let list = List::new(items).block(block).highlight_style(
             Style::default()
-                .bg(Color::Yellow)
+                .bg(SEL_COLOR)
                 .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         );
@@ -276,6 +278,7 @@ impl<'a> GroupTabData<'a>{
         match self.active_widget {
             ActiveWidget::Groups => self.list_state.selected(),
             ActiveWidget::Details => self.table_state.selected(),
+            //TODO: this does not work for popups, maybe move from this approach, having a universal selected() select() navigate_down() ...
             _ => None,
         }
     }
@@ -384,7 +387,7 @@ impl<'a> GroupTabData<'a>{
 
     fn render_details(&self) -> Table<'a> {
         let highlight_style = Style::default()
-            .bg(Color::Yellow)
+            .bg(SEL_COLOR)
             .fg(Color::Black)
             .add_modifier(Modifier::BOLD);
         
@@ -392,7 +395,7 @@ impl<'a> GroupTabData<'a>{
             let mut style  = Style::default();
             if let Some(sel_col) = self.table_state.selected_col {
                 if sel_col == idx_col && self.table_state.selected().unwrap() == idx_row {
-                    style = style.bg(Color::Yellow)
+                    style = style.bg(SEL_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD);
                 }
@@ -498,7 +501,7 @@ impl<'a> GroupTabData<'a>{
             .block(groupnames_block)
             .highlight_style(
                 Style::default()
-                    .bg(Color::Yellow)
+                    .bg(SEL_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
@@ -532,7 +535,7 @@ impl<'a> GroupTabData<'a>{
             )
             .highlight_style(
                 Style::default()
-                    .bg(Color::Yellow)
+                    .bg(SEL_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
@@ -624,7 +627,7 @@ pub fn main_loop(
                         Span::styled(
                             first,
                             Style::default()
-                                .fg(Color::Yellow)
+                                .fg(SEL_COLOR)
                                 .add_modifier(Modifier::UNDERLINED),
                         ),
                         Span::styled(rest, Style::default().fg(Color::White)),
@@ -636,7 +639,7 @@ pub fn main_loop(
                 .select(active_menu_item.into())
                 .block(Block::default().title("Menu").borders(Borders::ALL))
                 .style(Style::default().fg(Color::White))
-                .highlight_style(Style::default().fg(Color::Yellow))
+                .highlight_style(Style::default().fg(SEL_COLOR))
                 .divider(Span::raw("|"));
 
             rect.render_widget(tabs, chunks[0]);
