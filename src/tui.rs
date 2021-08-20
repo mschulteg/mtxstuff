@@ -214,6 +214,7 @@ impl Popup for CommandPopup {
 struct TrackTableWidget {
     table_state: TableState,
     selected_col: Option<usize>,
+    keys_orig: Vec<GroupKey>,
     keys_copy: Vec<GroupKey>,
 }
 
@@ -224,6 +225,92 @@ impl TrackTableWidget {
 
     fn selected(&self) -> Option<usize> {
         self.table_state.selected()
+    }
+
+    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect) {
+        let highlight_style = Style::default()
+            .bg(SEL_COLOR)
+            .fg(Color::Black)
+            .add_modifier(Modifier::BOLD);
+        
+        let create_style = |item: &String, idx_col: usize, idx_row: usize| {
+            let mut style  = Style::default();
+            if let Some(sel_col) = self.selected_col {
+                if sel_col == idx_col && self.selected().unwrap() == idx_row {
+                    style = style.bg(SEL_COLOR)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD);
+                }
+            }
+            if let Some(group_item) = self.keys_orig.get(idx_row)
+                .and_then(|r| r.row().get(idx_col).cloned()){
+                if group_item != *item {
+                    style = style.add_modifier(Modifier::ITALIC);
+                }
+            }
+            style
+        };
+
+        let group_detail_rows: Vec<Row> = 
+            self.keys_copy.iter().enumerate().map(|(idx_row, keyrow)| {
+                Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
+                    let cell = Cell::from(Span::raw(item.clone()));
+                    cell.style(create_style(item, idx_col, idx_row))
+                }))
+            }).collect();
+
+        let group_detail= Table::new(group_detail_rows);
+        let group_detail = group_detail
+            .header(Row::new(vec![
+                Cell::from(Span::styled(
+                    "lange",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Cell::from(Span::styled(
+                    "name",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Cell::from(Span::styled(
+                    "def",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Cell::from(Span::styled(
+                    "fcd",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Cell::from(Span::styled(
+                    "en",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+            ]))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::White))
+                    .title("Detail")
+                    .border_type(BorderType::Plain),
+            )
+            .widths(&[
+                Constraint::Min(10),
+                Constraint::Min(30),
+                Constraint::Min(5),
+                Constraint::Min(5),
+                Constraint::Min(5),
+            ])
+            .column_spacing(1)
+            .highlight_style(highlight_style);
+
+        // disable default highlighting if we want to highlight a single item
+        let group_detail = if self.selected_col.is_some() {
+            group_detail.highlight_style(Style::default())
+        } else {
+            group_detail
+        };
+        frame.render_stateful_widget(
+            group_detail,
+            area,
+            &mut self.table_state,
+        );
     }
 }
 
@@ -277,6 +364,7 @@ impl<'a> GroupTabData<'a>{
         } else {
             Vec::<GroupKey>::new()
         };
+        self.track_table.keys_orig = self.track_table.keys_copy.clone();
     }
 
     fn select(&mut self, index: Option<usize>) {
@@ -401,88 +489,6 @@ impl<'a> GroupTabData<'a>{
     }
 
 
-    fn render_track_table(&self) -> Table<'a> {
-        let highlight_style = Style::default()
-            .bg(SEL_COLOR)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD);
-        
-        let create_style = |item: &String, idx_col: usize, idx_row: usize| {
-            let mut style  = Style::default();
-            if let Some(sel_col) = self.track_table.selected_col {
-                if sel_col == idx_col && self.track_table.selected().unwrap() == idx_row {
-                    style = style.bg(SEL_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD);
-                }
-            }
-            if let Some(group_item) = self.selected_group()
-                .and_then(|g| g.key.get(idx_row))
-                .and_then(|r| r.row().get(idx_col).cloned()){
-                if group_item != *item {
-                    style = style.add_modifier(Modifier::ITALIC);
-                }
-            }
-            style
-        };
-
-        let group_detail_rows: Vec<Row> = 
-            self.track_table.keys_copy.iter().enumerate().map(|(idx_row, keyrow)| {
-                Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
-                    let cell = Cell::from(Span::raw(item.clone()));
-                    cell.style(create_style(item, idx_col, idx_row))
-                }))
-            }).collect();
-
-        let group_detail= Table::new(group_detail_rows);
-        let group_detail = group_detail
-            .header(Row::new(vec![
-                Cell::from(Span::styled(
-                    "lange",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                Cell::from(Span::styled(
-                    "name",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                Cell::from(Span::styled(
-                    "def",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                Cell::from(Span::styled(
-                    "fcd",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                Cell::from(Span::styled(
-                    "en",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-            ]))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::White))
-                    .title("Detail")
-                    .border_type(BorderType::Plain),
-            )
-            .widths(&[
-                Constraint::Min(10),
-                Constraint::Min(30),
-                Constraint::Min(5),
-                Constraint::Min(5),
-                Constraint::Min(5),
-            ])
-            .column_spacing(1)
-            .highlight_style(highlight_style);
-
-        // disable default highlighting if we want to highlight a single item
-        let group_detail = if self.track_table.selected_col.is_some() {
-            group_detail.highlight_style(Style::default())
-        } else {
-            group_detail
-        };
-        group_detail
-    }
 
     fn render_group_list(&self) -> List<'a> {
         let groupnames_block = Block::default()
@@ -548,10 +554,10 @@ impl<'a> GroupTabData<'a>{
         group_files
     }
 
-    fn render_groups(&self) -> (List<'a>, Table<'a>, List<'a>) {
+    fn render_groups(&self) -> (List<'a>, List<'a>) {
         (
             self.render_group_list(),
-            self.render_track_table(),
+            //self.track_table.render_track_table(self.selected_group()),
             self.render_groupfiles_list(),
         )
     }
@@ -659,13 +665,11 @@ pub fn main_loop(
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(horiz_split[1]);
-                let (left, detail, files) = tab_data.render_groups();
+                let (left,  files) = tab_data.render_groups();
+
+                tab_data.track_table.render(rect, vert_split[0]);
+
                 rect.render_stateful_widget(left, horiz_split[0], &mut tab_data.list_state);
-                rect.render_stateful_widget(
-                    detail,
-                    vert_split[0],
-                    &mut tab_data.track_table.table_state,
-                );
                 rect.render_widget(files, vert_split[1]);
                 if tab_data.active_widget == ActiveWidget::Popup {
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
