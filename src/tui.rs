@@ -125,8 +125,20 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // }
 
 use std::io::Stdout;
+// TODO: Frame<B: Backend>
 trait Popup {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect);
+
+    fn selected(&self) -> Option<usize> {
+        None
+    }
+
+    fn select(&mut self, index: Option<usize>) {
+    }
+
+    fn length(&self) -> usize {
+        0
+    }
 }
 
 //#[derive(Clone)]
@@ -183,6 +195,10 @@ impl Popup for CommandPopup {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         frame.render_widget(self.render(), area);
     }
+
+    fn selected(&self) -> Option<usize> {
+        self.list_state.selected()
+    }
 }
 
 
@@ -195,13 +211,13 @@ impl Popup for CommandPopup {
 
 
 #[derive(Clone, Default)]
-struct EnhancedTableState {
+struct TrackTableWidget {
     table_state: TableState,
     selected_col: Option<usize>,
     keys_copy: Vec<GroupKey>,
 }
 
-impl EnhancedTableState {
+impl TrackTableWidget {
     fn select(&mut self, index: Option<usize>) {
         self.table_state.select(index);
     }
@@ -214,7 +230,7 @@ impl EnhancedTableState {
 //#[derive(Clone)]
 struct GroupTabData<'a> {
     list_state: ListState,
-    table_state: EnhancedTableState,
+    track_table: TrackTableWidget,
     groups: &'a [Group<'a>],
     active_widget: ActiveWidget,
     popup_data: PopupRenderer,
@@ -226,12 +242,12 @@ use std::io::prelude::*;
 impl<'a> GroupTabData<'a>{
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         let mut list_state = ListState::default();
-        let mut table_state = EnhancedTableState::default();
+        let mut track_table = TrackTableWidget::default();
         list_state.select(if !groups.is_empty() { Some(0) } else { None });
-        table_state.select(None);
+        track_table.select(None);
         GroupTabData {
             list_state,
-            table_state,
+            track_table,
             groups,
             active_widget: ActiveWidget::Groups,
             popup_data: PopupRenderer{popup_stack: Vec::new()},
@@ -241,7 +257,7 @@ impl<'a> GroupTabData<'a>{
 
     fn generate_commands(&mut self) {
         let sel_group = self.selected_group().unwrap();
-        let commands = sel_group.apply_changes(&self.table_state.keys_copy, self.track_type);
+        let commands = sel_group.apply_changes(&self.track_table.keys_copy, self.track_type);
         let mut file = File::create("mtx_commands.sh").unwrap();
         let strings: Vec<_> = commands.iter().map(|cmd|cmd.to_cmd_string()).collect();
         file.write_all(b"#!/bin/sh\n").unwrap();
@@ -256,7 +272,7 @@ impl<'a> GroupTabData<'a>{
     }
 
     fn refresh_keys(&mut self){
-        self.table_state.keys_copy = if let Some(sel_group) = self.selected_group() {
+        self.track_table.keys_copy = if let Some(sel_group) = self.selected_group() {
             sel_group.key.clone()
         } else {
             Vec::<GroupKey>::new()
@@ -269,7 +285,7 @@ impl<'a> GroupTabData<'a>{
                 self.list_state.select(index);
                 self.refresh_keys();
             },
-            ActiveWidget::Details => self.table_state.select(index),
+            ActiveWidget::Details => self.track_table.select(index),
             _ => {}
         }
     }
@@ -277,7 +293,7 @@ impl<'a> GroupTabData<'a>{
     fn selected(&self) -> Option<usize> {
         match self.active_widget {
             ActiveWidget::Groups => self.list_state.selected(),
-            ActiveWidget::Details => self.table_state.selected(),
+            ActiveWidget::Details => self.track_table.selected(),
             //TODO: this does not work for popups, maybe move from this approach, having a universal selected() select() navigate_down() ...
             _ => None,
         }
@@ -334,9 +350,9 @@ impl<'a> GroupTabData<'a>{
             }
         }
         if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(selected_col) = self.table_state.selected_col {
+            if let Some(selected_col) = self.track_table.selected_col {
                 if selected_col < 4 {// TODO: do not hard code
-                    self.table_state.selected_col = Some(selected_col + 1);
+                    self.track_table.selected_col = Some(selected_col + 1);
                 }
             }
         }
@@ -348,9 +364,9 @@ impl<'a> GroupTabData<'a>{
             self.active_widget = ActiveWidget::Groups;
         }
         if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(selected_col) = self.table_state.selected_col {
+            if let Some(selected_col) = self.track_table.selected_col {
                 if selected_col > 0 {
-                    self.table_state.selected_col = Some(selected_col - 1);
+                    self.track_table.selected_col = Some(selected_col - 1);
                 }
             }
         }
@@ -359,12 +375,12 @@ impl<'a> GroupTabData<'a>{
     fn navigate_enter(&mut self) {
         if self.active_widget == ActiveWidget::Details {
             self.active_widget = ActiveWidget::DetailsItems;
-            self.table_state.selected_col = Some(0);
+            self.track_table.selected_col = Some(0);
         }
         else if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(sel_row) = self.table_state.selected(){
-                let gkey = self.table_state.keys_copy.get_mut(sel_row).unwrap();
-                match self.table_state.selected_col.unwrap() {
+            if let Some(sel_row) = self.track_table.selected(){
+                let gkey = self.track_table.keys_copy.get_mut(sel_row).unwrap();
+                match self.track_table.selected_col.unwrap() {
                     2 => {gkey.default = !gkey.default;}
                     3 => {gkey.forced = !gkey.forced;}
                     4 => {gkey.enabled = !gkey.enabled;}
@@ -380,12 +396,12 @@ impl<'a> GroupTabData<'a>{
         }
         if self.active_widget == ActiveWidget::DetailsItems {
             self.active_widget = ActiveWidget::Details;
-            self.table_state.selected_col = None;
+            self.track_table.selected_col = None;
         }
     }
 
 
-    fn render_details(&self) -> Table<'a> {
+    fn render_track_table(&self) -> Table<'a> {
         let highlight_style = Style::default()
             .bg(SEL_COLOR)
             .fg(Color::Black)
@@ -393,8 +409,8 @@ impl<'a> GroupTabData<'a>{
         
         let create_style = |item: &String, idx_col: usize, idx_row: usize| {
             let mut style  = Style::default();
-            if let Some(sel_col) = self.table_state.selected_col {
-                if sel_col == idx_col && self.table_state.selected().unwrap() == idx_row {
+            if let Some(sel_col) = self.track_table.selected_col {
+                if sel_col == idx_col && self.track_table.selected().unwrap() == idx_row {
                     style = style.bg(SEL_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD);
@@ -410,18 +426,8 @@ impl<'a> GroupTabData<'a>{
             style
         };
 
-        // let group_detail_rows = if let Some(selected_group) = self.selected_group() {
-        //     selected_group.key.iter().enumerate().map(|(idx_row, keyrow)| {
-        //         Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
-        //             let cell = Cell::from(Span::raw(item.clone()));
-        //             cell.style(create_style(&item, idx_col, idx_row))
-        //         }))
-        //     }).collect()
-        // } else {
-        //     Vec::<Row>::new()
-        // };
         let group_detail_rows: Vec<Row> = 
-            self.table_state.keys_copy.iter().enumerate().map(|(idx_row, keyrow)| {
+            self.track_table.keys_copy.iter().enumerate().map(|(idx_row, keyrow)| {
                 Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
                     let cell = Cell::from(Span::raw(item.clone()));
                     cell.style(create_style(item, idx_col, idx_row))
@@ -470,7 +476,7 @@ impl<'a> GroupTabData<'a>{
             .highlight_style(highlight_style);
 
         // disable default highlighting if we want to highlight a single item
-        let group_detail = if self.table_state.selected_col.is_some() {
+        let group_detail = if self.track_table.selected_col.is_some() {
             group_detail.highlight_style(Style::default())
         } else {
             group_detail
@@ -545,7 +551,7 @@ impl<'a> GroupTabData<'a>{
     fn render_groups(&self) -> (List<'a>, Table<'a>, List<'a>) {
         (
             self.render_group_list(),
-            self.render_details(),
+            self.render_track_table(),
             self.render_groupfiles_list(),
         )
     }
@@ -658,7 +664,7 @@ pub fn main_loop(
                 rect.render_stateful_widget(
                     detail,
                     vert_split[0],
-                    &mut tab_data.table_state.table_state,
+                    &mut tab_data.track_table.table_state,
                 );
                 rect.render_widget(files, vert_split[1]);
                 if tab_data.active_widget == ActiveWidget::Popup {
