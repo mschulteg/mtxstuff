@@ -204,10 +204,76 @@ impl Popup for CommandPopup {
 
 
 
+#[derive(Clone, Default)]
+struct GroupFilesListWidget {
+    list_state: ListState,
+    file_names: Vec<String>,
+}
+
+impl GroupFilesListWidget {
+    fn set_filenames(&mut self, group: &Group) {
+        self.file_names.clear();
+        self.file_names.extend(group.files.iter().map(|file|file.file_name.clone()));
+    }
+
+    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect) {
+        // Group files
+        let group_files_items: Vec<_> = self.file_names.iter().map(|file_name| ListItem::new(Spans::from(vec![Span::styled(file_name.clone(), Style::default(),)]))).collect();
+
+        let group_files = List::new(group_files_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::White))
+                    .title("Files")
+                    .border_type(BorderType::Plain),
+            )
+            .highlight_style(
+                Style::default()
+                    .bg(SEL_COLOR)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD),
+            );
+        frame.render_stateful_widget(group_files, area, &mut self.list_state);
+    }
+}
 
 
 
-////
+#[derive(Clone, Default)]
+struct GroupListWidget {
+    list_state: ListState,
+}
+
+impl GroupListWidget {
+    //TODO: remove groups, maybe keep a copy
+    fn render<B: tui::backend::Backend> (&mut self, frame: &mut Frame<B>, area: Rect, num_groups: usize) {
+        let groupnames_block = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Groups")
+            .border_type(BorderType::Plain);
+
+        let groupnames_items: Vec<_> = (0..num_groups)
+            .map(|idx| {
+                ListItem::new(Spans::from(vec![Span::styled(
+                    format!("Group #{}", idx.to_string()),
+                    Style::default(),
+                )]))
+            })
+            .collect();
+
+        let groupnames_list = List::new(groupnames_items)
+            .block(groupnames_block)
+            .highlight_style(
+                Style::default()
+                    .bg(SEL_COLOR)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD),
+            );
+        frame.render_stateful_widget(groupnames_list, area, &mut self.list_state);
+    }
+}
 
 
 #[derive(Clone, Default)]
@@ -316,8 +382,9 @@ impl TrackTableWidget {
 
 //#[derive(Clone)]
 struct GroupTabData<'a> {
-    list_state: ListState,
+    group_list: GroupListWidget,
     track_table: TrackTableWidget,
+    group_files_list: GroupFilesListWidget,
     groups: &'a [Group<'a>],
     active_widget: ActiveWidget,
     popup_data: PopupRenderer,
@@ -328,13 +395,12 @@ use std::fs::File;
 use std::io::prelude::*;
 impl<'a> GroupTabData<'a>{
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
-        let mut list_state = ListState::default();
-        let mut track_table = TrackTableWidget::default();
-        list_state.select(if !groups.is_empty() { Some(0) } else { None });
-        track_table.select(None);
+        let mut group_list = GroupListWidget::default();
+        group_list.list_state.select(if !groups.is_empty() { Some(0) } else { None });
         GroupTabData {
-            list_state,
-            track_table,
+            group_list,
+            track_table: TrackTableWidget::default(),
+            group_files_list: GroupFilesListWidget::default(),
             groups,
             active_widget: ActiveWidget::Groups,
             popup_data: PopupRenderer{popup_stack: Vec::new()},
@@ -370,7 +436,7 @@ impl<'a> GroupTabData<'a>{
     fn select(&mut self, index: Option<usize>) {
         match self.active_widget {
             ActiveWidget::Groups => {
-                self.list_state.select(index);
+                self.group_list.list_state.select(index);
                 self.refresh_keys();
             },
             ActiveWidget::Details => self.track_table.select(index),
@@ -380,7 +446,7 @@ impl<'a> GroupTabData<'a>{
 
     fn selected(&self) -> Option<usize> {
         match self.active_widget {
-            ActiveWidget::Groups => self.list_state.selected(),
+            ActiveWidget::Groups => self.group_list.list_state.selected(),
             ActiveWidget::Details => self.track_table.selected(),
             //TODO: this does not work for popups, maybe move from this approach, having a universal selected() select() navigate_down() ...
             _ => None,
@@ -390,6 +456,7 @@ impl<'a> GroupTabData<'a>{
 
     fn selected_group(&self) -> Option<&Group> {
         self
+            .group_list
             .list_state
             .selected()
             .and_then(|selected| self.groups.get(selected))
@@ -399,6 +466,7 @@ impl<'a> GroupTabData<'a>{
         match self.active_widget {
             ActiveWidget::Groups => self.groups.len(),
             ActiveWidget::Details => self
+                .group_list
                 .list_state
                 .selected()
                 .and_then(|selected| self.groups.get(selected))
@@ -486,80 +554,6 @@ impl<'a> GroupTabData<'a>{
             self.active_widget = ActiveWidget::Details;
             self.track_table.selected_col = None;
         }
-    }
-
-
-
-    fn render_group_list(&self) -> List<'a> {
-        let groupnames_block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
-            .title("Groups")
-            .border_type(BorderType::Plain);
-
-        let groupnames_items: Vec<_> = self
-            .groups
-            .iter()
-            .enumerate()
-            .map(|(idx, _)| {
-                ListItem::new(Spans::from(vec![Span::styled(
-                    format!("Group #{}", idx.to_string()),
-                    Style::default(),
-                )]))
-            })
-            .collect();
-
-        let groupnames_list = List::new(groupnames_items)
-            .block(groupnames_block)
-            .highlight_style(
-                Style::default()
-                    .bg(SEL_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
-        groupnames_list
-    }
-
-    fn render_groupfiles_list(&self) -> List<'a> {
-        // Group files
-        let group_files_items: Vec<_> = if let Some(selected_group) = self.selected_group() {
-            selected_group
-                .files
-                .iter()
-                .map(|file| {
-                    ListItem::new(Spans::from(vec![Span::styled(
-                        file.file_name.clone(),
-                        Style::default(),
-                    )]))
-                })
-                .collect()
-        } else {
-            Vec::<ListItem>::new()
-        };
-
-        let group_files = List::new(group_files_items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::White))
-                    .title("Files")
-                    .border_type(BorderType::Plain),
-            )
-            .highlight_style(
-                Style::default()
-                    .bg(SEL_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
-        group_files
-    }
-
-    fn render_groups(&self) -> (List<'a>, List<'a>) {
-        (
-            self.render_group_list(),
-            //self.track_table.render_track_table(self.selected_group()),
-            self.render_groupfiles_list(),
-        )
     }
 }
 
@@ -665,12 +659,11 @@ pub fn main_loop(
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(horiz_split[1]);
-                let (left,  files) = tab_data.render_groups();
+
+                tab_data.group_files_list.render(rect, vert_split[1]);
 
                 tab_data.track_table.render(rect, vert_split[0]);
-
-                rect.render_stateful_widget(left, horiz_split[0], &mut tab_data.list_state);
-                rect.render_widget(files, vert_split[1]);
+                tab_data.group_list.render(rect, horiz_split[0], tab_data.groups.len());
                 if tab_data.active_widget == ActiveWidget::Popup {
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
                     let popup_area = centered_rect(80, 80, chunks[1]);
