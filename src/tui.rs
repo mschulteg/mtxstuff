@@ -128,16 +128,6 @@ use std::io::Stdout;
 // TODO: Frame<B: Backend>
 trait Popup {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect);
-
-    fn selected(&self) -> Option<usize> {
-        None
-    }
-
-    fn select(&mut self, index: Option<usize>) {}
-
-    fn length(&self) -> usize {
-        0
-    }
 }
 
 //#[derive(Clone)]
@@ -191,10 +181,6 @@ impl CommandPopup {
 impl Popup for CommandPopup {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         frame.render_widget(self.render(), area);
-    }
-
-    fn selected(&self) -> Option<usize> {
-        self.list_state.selected()
     }
 }
 
@@ -300,6 +286,20 @@ struct TrackTableWidget {
 }
 
 impl TrackTableWidget {
+    fn from_group(group: Option<&Group>) -> Self {
+        let keys_orig = if let Some(sel_group) = group {
+            sel_group.key.clone()
+        } else {
+            Vec::<GroupKey>::new()
+        };
+        let keys_copy = keys_orig.clone();
+        Self {
+            keys_orig,
+            keys_copy,
+            ..Self::default()
+        }
+    }
+
     fn select(&mut self, index: Option<usize>) {
         self.table_state.select(index);
     }
@@ -447,20 +447,16 @@ impl<'a> GroupTabData<'a> {
         self.popup_data.popup_stack.push(Box::new(command_popup));
     }
 
-    fn refresh_keys(&mut self) {
-        self.track_table.keys_copy = if let Some(sel_group) = self.selected_group() {
-            sel_group.key.clone()
-        } else {
-            Vec::<GroupKey>::new()
-        };
-        self.track_table.keys_orig = self.track_table.keys_copy.clone();
+    fn load_selected_group(&mut self) {
+        self.track_table = TrackTableWidget::from_group(self.selected_group());
+        self.group_files_list = GroupFilesListWidget::from_group(self.selected_group());
     }
 
     fn select(&mut self, index: Option<usize>) {
         match self.active_widget {
             ActiveWidget::Groups => {
                 self.group_list.list_state.select(index);
-                self.refresh_keys();
+                self.load_selected_group();
             }
             ActiveWidget::Details => self.track_table.select(index),
             _ => {}
@@ -622,8 +618,8 @@ pub fn main_loop(
     let mut audio_tab_data = GroupTabData::new(groups_audio, TrackType::Audio);
     let mut sub_tab_data = GroupTabData::new(groups_subs, TrackType::Subtitles);
     // Refresh keys which means that keys are copied to the editable area.
-    audio_tab_data.refresh_keys();
-    sub_tab_data.refresh_keys();
+    audio_tab_data.load_selected_group();
+    sub_tab_data.load_selected_group();
 
     loop {
         terminal.draw(|rect| {
@@ -690,6 +686,9 @@ pub fn main_loop(
                 //TODO: check for alternatives - maybe only refresh on group selection change
                 //TODO: universal refresh function for each group selection change
                 //      can be called in refresh_keys
+                // data to be refreshed:
+                // file_names for GroupFilesListWidget
+                // keys_orig, keys_copy for TrackTableWidget
                 tab_data.group_files_list =
                     GroupFilesListWidget::from_group(tab_data.selected_group());
                 tab_data.group_files_list.render(rect, vert_split[1]);
