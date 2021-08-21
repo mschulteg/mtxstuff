@@ -683,12 +683,6 @@ pub fn main_loop(
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(horiz_split[1]);
 
-                //TODO: check for alternatives - maybe only refresh on group selection change
-                //TODO: universal refresh function for each group selection change
-                //      can be called in refresh_keys
-                // data to be refreshed:
-                // file_names for GroupFilesListWidget
-                // keys_orig, keys_copy for TrackTableWidget
                 tab_data.group_files_list =
                     GroupFilesListWidget::from_group(tab_data.selected_group());
                 tab_data.group_files_list.render(rect, vert_split[1]);
