@@ -2,9 +2,9 @@ mod command;
 mod file;
 mod group;
 mod table;
-mod tui;
+mod ui;
 
-use crate::tui::main_loop;
+use crate::ui::main_loop;
 use command::Command;
 use file::{File, Flag, TrackType};
 use group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
