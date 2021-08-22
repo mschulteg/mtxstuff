@@ -55,7 +55,12 @@ fn test_identify(json_strings: Vec<String>) -> Vec<File> {
 
 use clap::{App, AppSettings, Arg};
 
+use log::{info};
+use log4rs;
 fn main() {
+    log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
+    info!("test");
+    
     let arg_directory = Arg::with_name("directory")
         .help("Path to directory")
         .required(true);
