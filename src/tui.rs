@@ -346,7 +346,6 @@ impl GroupListWidget {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        num_groups: usize,
     ) {
         let groupnames_block = Block::default()
             .borders(Borders::ALL)
@@ -354,7 +353,7 @@ impl GroupListWidget {
             .title("Groups")
             .border_type(BorderType::Plain);
 
-        let groupnames_items: Vec<_> = (0..num_groups)
+        let groupnames_items: Vec<_> = (0..self.num_groups)
             .map(|idx| {
                 ListItem::new(Spans::from(vec![Span::styled(
                     format!("Group #{}", idx.to_string()),
@@ -787,7 +786,7 @@ pub fn main_loop(
                 tab_data.track_table.render(rect, vert_split[0]);
                 tab_data
                     .group_list
-                    .render(rect, horiz_split[0], tab_data.groups.len());
+                    .render(rect, horiz_split[0]);
 
                 if tab_data.active_widget == ActiveWidget::Popup {
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
