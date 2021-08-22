@@ -59,6 +59,14 @@ enum ActiveWidget {
     Popup,
 }
 
+#[derive(PartialEq)]
+enum Action {
+    NavigateForward(ActiveWidget),
+    NavigateBackward(ActiveWidget),
+    LoadGroup,
+    Pass,
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -83,14 +91,6 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
-}
-
-#[derive(PartialEq)]
-enum Action {
-    NavigateForward(ActiveWidget),
-    NavigateBackward(ActiveWidget),
-    LoadGroup,
-    Pass,
 }
 
 trait KeyPressConsumer {
