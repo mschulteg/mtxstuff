@@ -49,7 +49,7 @@ impl From<MenuItem> for usize {
 enum ActiveWidget {
     Groups,
     Details,
-    DetailsItems,
+    Files,
     Popup,
 }
 
@@ -79,50 +79,62 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-// trait SelectableState{
-//     fn select(&mut self, index: Option<usize>);
-//     fn selected(&self) -> Option<usize>;
+trait SelectableState {
+    fn select(&mut self, index: Option<usize>);
+    fn selected(&self) -> Option<usize>;
+    fn length(&self) -> usize;
 
-//     fn navigate_down(&mut self, list_size: usize) {
-//         if let Some(selected) = self.selected() {
-//             if selected >= list_size - 1 {
-//                 self.select(Some(0));
-//             } else {
-//                 self.select(Some(selected + 1));
-//             }
-//         }
-//     }
+    fn selectable(&self) -> bool {
+        true
+    }
 
-//     fn navigate_up(&mut self, list_size: usize) {
-//         if let Some(selected) = self.selected() {
-//             if selected > 0 {
-//                 self.select(Some(selected - 1));
-//             } else {
-//                 self.select(Some(list_size - 1));
-//             }
-//         }
-//     }
-// }
+    fn try_enter(&mut self) -> bool {
+        if self.length() != 0 {
+            self.select(Some(0));
+            true
+        } else {
+            false
+        }
+    }
 
-// impl SelectableState for ListState {
-//     fn select(&mut self, index: Option<usize>) {
-//         self.select(index)
-//     }
+    fn leave(&mut self) {
+        self.select(None);
+    }
 
-//     fn selected(&self) -> Option<usize> {
-//         self.selected()
-//     }
-// }
+    fn navigate_down(&mut self) -> Option<bool> {
+        if !self.selectable() {
+            return None;
+        }
+        if let Some(selected) = self.selected() {
+            if selected >= self.length() - 1 {
+                self.select(Some(self.length() - 1));
+                Some(false)
+            } else {
+                self.select(Some(selected + 1));
+                Some(true)
+            }
+        } else {
+            None
+        }
+    }
 
-// impl SelectableState for TableState {
-//     fn select(&mut self, index: Option<usize>) {
-//         self.select(index)
-//     }
-
-//     fn selected(&self) -> Option<usize> {
-//         self.selected()
-//     }
-// }
+    fn navigate_up(&mut self) -> Option<bool> {
+        if !self.selectable() {
+            return None;
+        }
+        if let Some(selected) = self.selected() {
+            if selected > 0 {
+                self.select(Some(selected - 1));
+                Some(true)
+            } else {
+                self.select(Some(0));
+                Some(false)
+            }
+        } else {
+            None
+        }
+    }
+}
 
 use std::io::Stdout;
 // TODO: Frame<B: Backend>
@@ -184,10 +196,62 @@ impl Popup for CommandPopup {
     }
 }
 
+#[derive(PartialEq)]
+pub enum Action {
+    ChangeActiveWidget(ActiveWidget),
+    NavigateForward(ActiveWidget),
+    NavigateBackward(ActiveWidget),
+    LoadGroup,
+    Pass,
+}
+
+trait KeyPressConsumer {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
+}
+
 #[derive(Clone, Default)]
 struct GroupFilesListWidget {
     list_state: ListState,
     file_names: Vec<String>,
+}
+
+impl KeyPressConsumer for GroupFilesListWidget {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Up => {
+                if let Some(down_res) = self.navigate_up() {
+                    if !down_res {
+                        return Action::NavigateBackward(ActiveWidget::Files);
+                    }
+                }
+            }
+            KeyCode::Down => {
+                self.navigate_down();
+            }
+            KeyCode::Esc => {
+                return Action::NavigateBackward(ActiveWidget::Files);
+            }
+            KeyCode::Left => {
+                return Action::NavigateBackward(ActiveWidget::Files);
+            }
+            _ => {}
+        }
+        Action::Pass
+    }
+}
+
+impl SelectableState for GroupFilesListWidget {
+    fn select(&mut self, index: Option<usize>) {
+        self.list_state.select(index);
+    }
+
+    fn selected(&self) -> Option<usize> {
+        self.list_state.selected()
+    }
+
+    fn length(&self) -> usize {
+        self.file_names.len()
+    }
 }
 
 impl GroupFilesListWidget {
@@ -240,6 +304,41 @@ impl GroupFilesListWidget {
 #[derive(Clone, Default)]
 struct GroupListWidget {
     list_state: ListState,
+    num_groups: usize,
+}
+
+impl KeyPressConsumer for GroupListWidget {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Up => {
+                self.navigate_up();
+                return Action::LoadGroup;
+            }
+            KeyCode::Down => {
+                self.navigate_down();
+                return Action::LoadGroup;
+            }
+            KeyCode::Right => {
+                return Action::NavigateForward(ActiveWidget::Groups);
+            }
+            _ => {}
+        }
+        Action::Pass
+    }
+}
+
+impl SelectableState for GroupListWidget {
+    fn select(&mut self, index: Option<usize>) {
+        self.list_state.select(index);
+    }
+
+    fn selected(&self) -> Option<usize> {
+        self.list_state.selected()
+    }
+
+    fn length(&self) -> usize {
+        self.num_groups
+    }
 }
 
 impl GroupListWidget {
@@ -285,6 +384,86 @@ struct TrackTableWidget {
     keys_copy: Vec<GroupKey>,
 }
 
+impl KeyPressConsumer for TrackTableWidget {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Up => {
+                self.navigate_up();
+            }
+            KeyCode::Down => {
+                if let Some(down_res) = self.navigate_down() {
+                    if !down_res {
+                        return Action::NavigateForward(ActiveWidget::Details);
+                    }
+                }
+            }
+            KeyCode::Right => {
+                if let Some(selected_col) = self.selected_col {
+                    if selected_col < 4 {
+                        self.selected_col = Some(selected_col + 1);
+                    }
+                }
+            }
+            KeyCode::Left => {
+                if let Some(selected_col) = self.selected_col {
+                    if selected_col > 0 {
+                        self.selected_col = Some(selected_col - 1);
+                    }
+                } else {
+                    return Action::NavigateBackward(ActiveWidget::Details);
+                }
+            }
+            KeyCode::Esc => {
+                if self.selected_col.is_some() {
+                    self.selected_col = None;
+                } else {
+                    return Action::NavigateBackward(ActiveWidget::Details);
+                }
+            }
+            KeyCode::Enter => {
+                if let Some(selected_col) = self.selected_col {
+                    let sel_row = self.selected().unwrap();
+                    let gkey = self.keys_copy.get_mut(sel_row).unwrap();
+                    match selected_col {
+                        2 => {
+                            gkey.default = !gkey.default;
+                        }
+                        3 => {
+                            gkey.forced = !gkey.forced;
+                        }
+                        4 => {
+                            gkey.enabled = !gkey.enabled;
+                        }
+                        _ => {}
+                    }
+                } else {
+                    self.selected_col = Some(0);
+                }
+            }
+            _ => {}
+        }
+        Action::Pass
+    }
+}
+
+impl SelectableState for TrackTableWidget {
+    fn select(&mut self, index: Option<usize>) {
+        self.table_state.select(index);
+    }
+
+    fn selected(&self) -> Option<usize> {
+        self.table_state.selected()
+    }
+
+    fn length(&self) -> usize {
+        self.keys_orig.len()
+    }
+
+    fn selectable(&self) -> bool {
+        self.selected_col.is_none()
+    }
+}
+
 impl TrackTableWidget {
     fn from_group(group: Option<&Group>) -> Self {
         let keys_orig = if let Some(sel_group) = group {
@@ -298,14 +477,6 @@ impl TrackTableWidget {
             keys_copy,
             ..Self::default()
         }
-    }
-
-    fn select(&mut self, index: Option<usize>) {
-        self.table_state.select(index);
-    }
-
-    fn selected(&self) -> Option<usize> {
-        self.table_state.selected()
     }
 
     fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
@@ -410,11 +581,64 @@ struct GroupTabData<'a> {
     track_type: TrackType,
 }
 
+impl<'a> KeyPressConsumer for GroupTabData<'a> {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        let res_action = match self.active_widget {
+            ActiveWidget::Groups => self.group_list.process_key(key_code),
+            ActiveWidget::Details => self.track_table.process_key(key_code),
+            ActiveWidget::Popup => self.track_table.process_key(key_code),
+            ActiveWidget::Files => self.group_files_list.process_key(key_code),
+        };
+        match res_action {
+            Action::ChangeActiveWidget(new_widget) => {
+                self.active_widget = new_widget;
+            }
+            Action::NavigateForward(src_widget) => match src_widget {
+                ActiveWidget::Details => {
+                    if self.group_files_list.try_enter() {
+                        self.track_table.leave();
+                        self.active_widget = ActiveWidget::Files;
+                    }
+                }
+                ActiveWidget::Groups => {
+                    if self.track_table.try_enter() {
+                        self.active_widget = ActiveWidget::Details;
+                    } else if self.group_files_list.try_enter() {
+                        self.active_widget = ActiveWidget::Files;
+                    }
+                }
+                _ => {}
+            },
+            Action::NavigateBackward(src_widget) => match src_widget {
+                ActiveWidget::Files => {
+                    if self.track_table.try_enter() {
+                        self.group_files_list.leave();
+                        self.active_widget = ActiveWidget::Details;
+                    } else {
+                        self.group_files_list.leave();
+                        self.active_widget = ActiveWidget::Groups;
+                    }
+                }
+                ActiveWidget::Details => {
+                    self.active_widget = ActiveWidget::Details;
+                    self.track_table.leave();
+                    self.active_widget = ActiveWidget::Groups;
+                }
+                _ => {}
+            },
+            Action::LoadGroup => self.load_selected_group(),
+            Action::Pass => {}
+        }
+        Action::Pass
+    }
+}
+
 use std::fs::File;
 use std::io::prelude::*;
 impl<'a> GroupTabData<'a> {
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         let mut group_list = GroupListWidget::default();
+        group_list.num_groups = groups.len();
         group_list
             .list_state
             .select(if !groups.is_empty() { Some(0) } else { None });
@@ -455,7 +679,7 @@ impl<'a> GroupTabData<'a> {
     fn select(&mut self, index: Option<usize>) {
         match self.active_widget {
             ActiveWidget::Groups => {
-                self.group_list.list_state.select(index);
+                self.group_list.select(index);
                 self.load_selected_group();
             }
             ActiveWidget::Details => self.track_table.select(index),
@@ -490,92 +714,6 @@ impl<'a> GroupTabData<'a> {
                 .map(|g| g.key.len())
                 .unwrap_or(0),
             _ => 0,
-        }
-    }
-
-    fn navigate_down(&mut self) {
-        if let Some(selected) = self.selected() {
-            if selected >= self.length() - 1 {
-                self.select(Some(0));
-            } else {
-                self.select(Some(selected + 1));
-            }
-        }
-    }
-
-    fn navigate_up(&mut self) {
-        if let Some(selected) = self.selected() {
-            if selected > 0 {
-                self.select(Some(selected - 1));
-            } else {
-                self.select(Some(self.length() - 1));
-            }
-        }
-    }
-
-    fn navigate_right(&mut self) {
-        if self.active_widget == ActiveWidget::Groups {
-            self.active_widget = ActiveWidget::Details;
-            if self.length() == 0 {
-                self.active_widget = ActiveWidget::Groups;
-            } else {
-                self.select(Some(0))
-            }
-        }
-        if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(selected_col) = self.track_table.selected_col {
-                if selected_col < 4 {
-                    // TODO: do not hard code
-                    self.track_table.selected_col = Some(selected_col + 1);
-                }
-            }
-        }
-    }
-
-    fn navigate_left(&mut self) {
-        if self.active_widget == ActiveWidget::Details {
-            self.select(None);
-            self.active_widget = ActiveWidget::Groups;
-        }
-        if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(selected_col) = self.track_table.selected_col {
-                if selected_col > 0 {
-                    self.track_table.selected_col = Some(selected_col - 1);
-                }
-            }
-        }
-    }
-
-    fn navigate_enter(&mut self) {
-        if self.active_widget == ActiveWidget::Details {
-            self.active_widget = ActiveWidget::DetailsItems;
-            self.track_table.selected_col = Some(0);
-        } else if self.active_widget == ActiveWidget::DetailsItems {
-            if let Some(sel_row) = self.track_table.selected() {
-                let gkey = self.track_table.keys_copy.get_mut(sel_row).unwrap();
-                match self.track_table.selected_col.unwrap() {
-                    2 => {
-                        gkey.default = !gkey.default;
-                    }
-                    3 => {
-                        gkey.forced = !gkey.forced;
-                    }
-                    4 => {
-                        gkey.enabled = !gkey.enabled;
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    fn navigate_back(&mut self) {
-        if self.active_widget == ActiveWidget::Popup {
-            self.active_widget = ActiveWidget::DetailsItems;
-        }
-        if self.active_widget == ActiveWidget::DetailsItems {
-            self.active_widget = ActiveWidget::Details;
-            self.track_table.selected_col = None;
         }
     }
 }
@@ -683,8 +821,6 @@ pub fn main_loop(
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(horiz_split[1]);
 
-                tab_data.group_files_list =
-                    GroupFilesListWidget::from_group(tab_data.selected_group());
                 tab_data.group_files_list.render(rect, vert_split[1]);
                 tab_data.track_table.render(rect, vert_split[0]);
                 tab_data
@@ -728,7 +864,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_right();
+                        tab_data.process_key(KeyCode::Right);
                     };
                 }
                 KeyCode::Left => {
@@ -737,7 +873,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_left();
+                        tab_data.process_key(KeyCode::Left);
                     };
                 }
                 KeyCode::Down => {
@@ -746,7 +882,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_down();
+                        tab_data.process_key(KeyCode::Down);
                     };
                 }
                 KeyCode::Up => {
@@ -755,7 +891,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_up();
+                        tab_data.process_key(KeyCode::Up);
                     };
                 }
                 KeyCode::Enter => {
@@ -764,7 +900,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_enter();
+                        tab_data.process_key(KeyCode::Enter);
                     };
                 }
                 KeyCode::F(2) => {
@@ -782,7 +918,7 @@ pub fn main_loop(
                         MenuItem::Audio => Some(&mut audio_tab_data),
                         _ => None,
                     } {
-                        tab_data.navigate_back();
+                        tab_data.process_key(KeyCode::Esc);
                     };
                 }
                 _ => {}
