@@ -197,8 +197,7 @@ impl Popup for CommandPopup {
 }
 
 #[derive(PartialEq)]
-pub enum Action {
-    ChangeActiveWidget(ActiveWidget),
+enum Action {
     NavigateForward(ActiveWidget),
     NavigateBackward(ActiveWidget),
     LoadGroup,
@@ -590,9 +589,6 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             ActiveWidget::Files => self.group_files_list.process_key(key_code),
         };
         match res_action {
-            Action::ChangeActiveWidget(new_widget) => {
-                self.active_widget = new_widget;
-            }
             Action::NavigateForward(src_widget) => match src_widget {
                 ActiveWidget::Details => {
                     if self.group_files_list.try_enter() {
@@ -676,45 +672,11 @@ impl<'a> GroupTabData<'a> {
         self.group_files_list = GroupFilesListWidget::from_group(self.selected_group());
     }
 
-    fn select(&mut self, index: Option<usize>) {
-        match self.active_widget {
-            ActiveWidget::Groups => {
-                self.group_list.select(index);
-                self.load_selected_group();
-            }
-            ActiveWidget::Details => self.track_table.select(index),
-            _ => {}
-        }
-    }
-
-    fn selected(&self) -> Option<usize> {
-        match self.active_widget {
-            ActiveWidget::Groups => self.group_list.list_state.selected(),
-            ActiveWidget::Details => self.track_table.selected(),
-            //TODO: this does not work for popups, maybe move from this approach, having a universal selected() select() navigate_down() ...
-            _ => None,
-        }
-    }
-
     fn selected_group(&self) -> Option<&Group> {
         self.group_list
             .list_state
             .selected()
             .and_then(|selected| self.groups.get(selected))
-    }
-
-    fn length(&self) -> usize {
-        match self.active_widget {
-            ActiveWidget::Groups => self.groups.len(),
-            ActiveWidget::Details => self
-                .group_list
-                .list_state
-                .selected()
-                .and_then(|selected| self.groups.get(selected))
-                .map(|g| g.key.len())
-                .unwrap_or(0),
-            _ => 0,
-        }
     }
 }
 
