@@ -1,3 +1,6 @@
+use super::Action;
+use super::KeyPressConsumer;
+use crossterm::event::KeyCode;
 use std::io::Stdout;
 use tui::{
     backend::CrosstermBackend,
@@ -11,9 +14,12 @@ use tui::{
 const SEL_COLOR: Color = Color::LightCyan;
 
 // TODO: Frame<B: Backend>
-pub(crate) trait Popup {
+pub(crate) trait PopupRender {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect);
 }
+
+pub(crate) trait Popup: PopupRender + KeyPressConsumer {}
+impl<T: PopupRender + KeyPressConsumer> Popup for T {}
 
 //#[derive(Clone)]
 pub(crate) struct PopupRenderer {
@@ -63,8 +69,20 @@ impl CommandPopup {
     }
 }
 
-impl Popup for CommandPopup {
+impl PopupRender for CommandPopup {
     fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         frame.render_widget(self.render(), area);
+    }
+}
+
+impl KeyPressConsumer for CommandPopup {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Up => {}
+            KeyCode::Down => {}
+            KeyCode::Right => {}
+            _ => {}
+        }
+        Action::Pass
     }
 }

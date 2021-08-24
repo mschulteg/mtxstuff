@@ -52,7 +52,7 @@ impl From<MenuItem> for usize {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-enum ActiveWidget {
+pub(crate) enum ActiveWidget {
     Groups,
     Details,
     Files,
@@ -60,7 +60,7 @@ enum ActiveWidget {
 }
 
 #[derive(PartialEq)]
-enum Action {
+pub(crate) enum Action {
     NavigateForward(ActiveWidget),
     NavigateBackward(ActiveWidget),
     LoadGroup,
@@ -93,7 +93,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-trait KeyPressConsumer {
+pub(crate) trait KeyPressConsumer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
 }
 
