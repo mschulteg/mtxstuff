@@ -136,6 +136,11 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 _ => {}
             },
             Action::NavigateBackward(src_widget) => match src_widget {
+                ActiveWidget::Popup => {
+                    self.group_files_list.leave();
+                    self.track_table.leave();
+                    self.active_widget = ActiveWidget::Groups;
+                }
                 ActiveWidget::Files => {
                     if self.track_table.try_enter() {
                         self.group_files_list.leave();
@@ -189,6 +194,7 @@ impl<'a> GroupTabData<'a> {
         self.active_widget = ActiveWidget::Popup;
         let mut command_popup = CommandPopup::default();
         command_popup.commands.extend(strings);
+        command_popup.try_enter(); // Last chance we get to call Trait method
         self.popup_data.popup_stack.push(Box::new(command_popup));
     }
 
