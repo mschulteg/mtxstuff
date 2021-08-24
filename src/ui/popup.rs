@@ -19,17 +19,26 @@ pub(crate) trait PopupRender {
 }
 
 pub(crate) trait Popup: PopupRender + KeyPressConsumer {}
-impl<T: PopupRender + KeyPressConsumer> Popup for T {}
 
 //#[derive(Clone)]
 pub(crate) struct PopupRenderer {
     pub(crate) popup_stack: Vec<Box<dyn Popup>>,
 }
 
-impl PopupRenderer {
-    pub(crate) fn render_stuff(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+impl PopupRender for PopupRenderer {
+    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         for popup in self.popup_stack.iter_mut() {
             popup.render_widget(frame, area);
+        }
+    }
+}
+
+impl KeyPressConsumer for PopupRenderer {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        if let Some(active_popup) = self.popup_stack.last_mut() {
+            active_popup.process_key(key_code)
+        } else {
+            Action::Pass
         }
     }
 }
@@ -86,3 +95,5 @@ impl KeyPressConsumer for CommandPopup {
         Action::Pass
     }
 }
+
+impl<T: PopupRender + KeyPressConsumer> Popup for T {}

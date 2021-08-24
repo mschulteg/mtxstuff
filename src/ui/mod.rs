@@ -3,6 +3,8 @@ mod group_list_widget;
 mod popup;
 mod selectable_state;
 mod track_table_widget;
+use crate::ui::popup::PopupRender;
+
 use super::file::TrackType;
 use super::group::Group;
 use super::ui::group_files_list_widget::GroupFilesListWidget;
@@ -113,7 +115,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
         let res_action = match self.active_widget {
             ActiveWidget::Groups => self.group_list.process_key(key_code),
             ActiveWidget::Details => self.track_table.process_key(key_code),
-            ActiveWidget::Popup => self.track_table.process_key(key_code),
+            ActiveWidget::Popup => self.popup_data.process_key(key_code),
             ActiveWidget::Files => self.group_files_list.process_key(key_code),
         };
         match res_action {
@@ -313,7 +315,7 @@ pub fn main_loop(
                     //let block = Block::default().title("Popup").borders(Borders::ALL);
                     let popup_area = centered_rect(80, 80, chunks[1]);
                     rect.render_widget(Clear, popup_area);
-                    tab_data.popup_data.render_stuff(rect, popup_area);
+                    tab_data.popup_data.render_widget(rect, popup_area);
                 }
             };
 
