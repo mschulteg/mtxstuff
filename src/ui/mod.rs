@@ -5,6 +5,8 @@ mod selectable_state;
 mod track_table_widget;
 use crate::ui::popup::PopupRender;
 
+use self::popup::EditPopup;
+
 use super::file::TrackType;
 use super::group::Group;
 use super::ui::group_files_list_widget::GroupFilesListWidget;
@@ -36,8 +38,8 @@ enum Event<I> {
     Tick,
 }
 
-#[derive(Copy, Clone, Debug)]
-enum MenuItem {
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub(crate) enum MenuItem {
     Home,
     Subs,
     Audio,
@@ -53,7 +55,7 @@ impl From<MenuItem> for usize {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum ActiveWidget {
     Groups,
     Details,
@@ -65,7 +67,11 @@ pub(crate) enum ActiveWidget {
 pub(crate) enum Action {
     NavigateForward(ActiveWidget),
     NavigateBackward(ActiveWidget),
+    EditString(String),
+    EditStringResult(Option<String>),
     LoadGroup,
+    SwitchTab(MenuItem),
+    Quit,
     Pass,
 }
 
@@ -112,12 +118,32 @@ struct GroupTabData<'a> {
 
 impl<'a> KeyPressConsumer for GroupTabData<'a> {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        log::info!(
+            "active_widget is:{:?}, keycode is {:?}",
+            self.active_widget,
+            key_code
+        );
         let res_action = match self.active_widget {
             ActiveWidget::Groups => self.group_list.process_key(key_code),
             ActiveWidget::Details => self.track_table.process_key(key_code),
             ActiveWidget::Popup => self.popup_data.process_key(key_code),
             ActiveWidget::Files => self.group_files_list.process_key(key_code),
         };
+        // TODO: Match key_codes for GrouTabData itself (Tab switching, Quitting) if not in edit mode
+        // For now, only do it if the active widget returned Action::Pass
+        if res_action == Action::Pass && self.active_widget != ActiveWidget::Popup {
+            match key_code {
+                KeyCode::Char('h') => return Action::SwitchTab(MenuItem::Home),
+                KeyCode::Char('s') => return Action::SwitchTab(MenuItem::Subs),
+                KeyCode::Char('a') => return Action::SwitchTab(MenuItem::Audio),
+                KeyCode::Char('q') => return Action::Quit,
+                KeyCode::F(2) => {
+                    self.generate_commands();
+                    return Action::Pass;
+                }
+                _ => {}
+            }
+        }
         match res_action {
             Action::NavigateForward(src_widget) => match src_widget {
                 ActiveWidget::Details => {
@@ -157,7 +183,32 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 }
                 _ => {}
             },
+            Action::EditString(string) => {
+                let new_popup = EditPopup { input: string };
+                self.popup_data.popup_stack.push(Box::new(new_popup));
+                self.active_widget = ActiveWidget::Popup;
+            }
+            Action::EditStringResult(res) => {
+                if let Some(string) = res {
+                    let row = self
+                        .track_table
+                        .selected()
+                        .expect("Currently edited item must be selected");
+                    self.track_table
+                        .get_keys_copy_mut()
+                        .get_mut(row)
+                        .expect("Currently edit item must exist")
+                        .name = Some(string);
+                }
+                // This is the same as above in Action::NavigateBackward(Popup)
+                // Find a better solution
+                self.group_files_list.leave();
+                self.track_table.leave();
+                self.active_widget = ActiveWidget::Groups;
+            }
             Action::LoadGroup => self.load_selected_group(),
+            switch_tab @ Action::SwitchTab(_) => return switch_tab,
+            Action::Quit => return Action::Quit,
             Action::Pass => {}
         }
         Action::Pass
@@ -185,7 +236,11 @@ impl<'a> GroupTabData<'a> {
         let sel_group = self.selected_group().unwrap();
         let commands = sel_group.apply_changes(&self.track_table.get_keys_copy(), self.track_type);
         let mut file = File::create("mtx_commands.sh").unwrap();
-        let strings: Vec<_> = commands.iter().map(|cmd| cmd.to_cmd_string()).flatten().collect();
+        let strings: Vec<_> = commands
+            .iter()
+            .map(|cmd| cmd.to_cmd_string())
+            .flatten()
+            .collect();
         file.write_all(b"#!/bin/sh\n").unwrap();
         for cmd in strings.iter() {
             file.write_all(cmd.as_bytes()).unwrap();
@@ -338,81 +393,30 @@ pub fn main_loop(
         })?;
 
         match rx.recv()? {
-            Event::Input(event) => match event.code {
-                KeyCode::Char('q') => {
-                    disable_raw_mode()?;
-                    terminal.show_cursor()?;
-                    break;
+            Event::Input(event) => {
+                let action = match active_menu_item {
+                    MenuItem::Subs => sub_tab_data.process_key(event.code),
+                    MenuItem::Audio => audio_tab_data.process_key(event.code),
+                    _ => match event.code {
+                        KeyCode::Char('h') => Action::SwitchTab(MenuItem::Home),
+                        KeyCode::Char('s') => Action::SwitchTab(MenuItem::Subs),
+                        KeyCode::Char('a') => Action::SwitchTab(MenuItem::Audio),
+                        KeyCode::Char('q') => Action::Quit,
+                        _ => Action::Pass,
+                    },
+                };
+                match action {
+                    Action::Quit => {
+                        disable_raw_mode()?;
+                        terminal.show_cursor()?;
+                        break;
+                    }
+                    Action::SwitchTab(MenuItem::Home) => active_menu_item = MenuItem::Home,
+                    Action::SwitchTab(MenuItem::Subs) => active_menu_item = MenuItem::Subs,
+                    Action::SwitchTab(MenuItem::Audio) => active_menu_item = MenuItem::Audio,
+                    _ => {}
                 }
-                KeyCode::Char('h') => active_menu_item = MenuItem::Home,
-                KeyCode::Char('s') => active_menu_item = MenuItem::Subs,
-                KeyCode::Char('a') => active_menu_item = MenuItem::Audio,
-                KeyCode::Char('d') => {}
-                KeyCode::Right => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Right);
-                    };
-                }
-                KeyCode::Left => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Left);
-                    };
-                }
-                KeyCode::Down => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Down);
-                    };
-                }
-                KeyCode::Up => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Up);
-                    };
-                }
-                KeyCode::Enter => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Enter);
-                    };
-                }
-                KeyCode::F(2) => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.generate_commands();
-                    };
-                }
-                KeyCode::Esc => {
-                    if let Some(tab_data) = match active_menu_item {
-                        MenuItem::Subs => Some(&mut sub_tab_data),
-                        MenuItem::Audio => Some(&mut audio_tab_data),
-                        _ => None,
-                    } {
-                        tab_data.process_key(KeyCode::Esc);
-                    };
-                }
-                _ => {}
-            },
+            }
             Event::Tick => {}
         }
     }
@@ -428,11 +432,14 @@ fn render_home<'a>() -> Paragraph<'a> {
         Spans::from(vec![Span::raw("to")]),
         Spans::from(vec![Span::raw("")]),
         Spans::from(vec![Span::styled(
-            "pet-CLI",
+            "mtxstuff alpha",
             Style::default().fg(Color::LightBlue),
         )]),
         Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::raw("Press 'p' to access pets, 'a' to add random new pets and 'd' to delete the currently selected pet.")]),
+        Spans::from(vec![Span::raw("Press 'S' to access Subtitle view, 'A' to access audio track view.")]),
+        Spans::from(vec![Span::raw("Files are scanned and put into groups that share the same track metadata (name, lang, flags).")]),
+        Spans::from(vec![Span::raw("This makes it easy to change metadata on multiple files that share the same general track list shape.")]),
+        Spans::from(vec![Span::raw("Changes are applied to all files in a group!")]),
     ])
     .alignment(Alignment::Center)
     .block(

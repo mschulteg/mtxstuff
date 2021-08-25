@@ -310,6 +310,7 @@ dependencies = [
  "serde_json",
  "subprocess",
  "tui",
+ "unicode-width",
  "walkdir",
 ]
 

@@ -1,2 +1,11 @@
+OLD:
 - Command methods should not return a vector of arguments??
 - builder pattern for command (but it always has to run on the same file)
+
+NEW:
+- Quit correctly without artifacts
+- Refresh changed files (automatically or via button)
+- Edit popup
+- Improve command generator popup
+- Prevent global keys H,S,A,Q from working when in popups
+- Different popup sizes

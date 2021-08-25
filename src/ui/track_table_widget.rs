@@ -68,6 +68,11 @@ impl KeyPressConsumer for TrackTableWidget {
                     let sel_row = self.selected().unwrap();
                     let gkey = self.keys_copy.get_mut(sel_row).unwrap();
                     match selected_col {
+                        1 => {
+                            if let Some(ref name) = gkey.name {
+                                return Action::EditString(name.clone());
+                            }
+                        }
                         2 => {
                             gkey.default = !gkey.default;
                         }
@@ -129,6 +134,10 @@ impl TrackTableWidget {
 
     pub(crate) fn get_keys_copy(&self) -> &[GroupKey] {
         &self.keys_copy
+    }
+
+    pub(crate) fn get_keys_copy_mut(&mut self) -> &mut [GroupKey]{
+        &mut self.keys_copy
     }
 
     pub(crate) fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
