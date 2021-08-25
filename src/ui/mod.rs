@@ -185,7 +185,7 @@ impl<'a> GroupTabData<'a> {
         let sel_group = self.selected_group().unwrap();
         let commands = sel_group.apply_changes(&self.track_table.get_keys_copy(), self.track_type);
         let mut file = File::create("mtx_commands.sh").unwrap();
-        let strings: Vec<_> = commands.iter().map(|cmd| cmd.to_cmd_string()).collect();
+        let strings: Vec<_> = commands.iter().map(|cmd| cmd.to_cmd_string()).flatten().collect();
         file.write_all(b"#!/bin/sh\n").unwrap();
         for cmd in strings.iter() {
             file.write_all(cmd.as_bytes()).unwrap();

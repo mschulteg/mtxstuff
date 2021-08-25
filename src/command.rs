@@ -15,15 +15,18 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn to_cmd_string(&self) -> String{
-        let mut string = self.executable.clone(); 
+    pub fn to_cmd_string(&self) -> Option<String> {
+        if self.arguments.len() == 0 {
+            return None;
+        }
+        let mut string = self.executable.clone();
         string.push(' ');
         string.push_str(&self.arguments.join(" "));
         string.push(' ');
         string.push('"');
         string.push_str(&self.file.file_name);
         string.push('"');
-        string
+        Some(string)
     }
 
     pub fn run(&self) {
@@ -59,10 +62,12 @@ impl<'a> Command<'a> {
         if unset_others {
             for track in tracks.iter() {
                 let value = sel_track.id == track.id;
-                self.arguments.extend(Command::track_set_flag(track, flag, value));
+                self.arguments
+                    .extend(Command::track_set_flag(track, flag, value));
             }
         } else {
-            self.arguments.extend(Command::track_set_flag(sel_track, flag, value));
+            self.arguments
+                .extend(Command::track_set_flag(sel_track, flag, value));
         }
     }
 

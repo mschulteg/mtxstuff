@@ -21,6 +21,7 @@ pub(crate) trait PopupRender {
 }
 
 pub(crate) trait Popup: PopupRender + KeyPressConsumer {}
+impl<T: PopupRender + KeyPressConsumer> Popup for T {}
 
 //#[derive(Clone)]
 pub(crate) struct PopupRenderer {
@@ -118,5 +119,38 @@ impl SelectableState for CommandPopup {
         self.commands.len()
     }
 }
+#[derive(Clone, Default)]
+pub(crate) struct EditPopup {
+    pub(crate) commands: Vec<String>,
+    pub(crate) list_state: ListState,
+}
 
-impl<T: PopupRender + KeyPressConsumer> Popup for T {}
+impl EditPopup {
+    fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Saved to mtx_commands.sh")
+            .border_type(BorderType::Thick);
+
+        let items: Vec<_> = {
+            self.commands
+                .iter()
+                .map(|item| {
+                    ListItem::new(Spans::from(vec![Span::styled(
+                        item.clone(),
+                        Style::default(),
+                    )]))
+                })
+                .collect()
+        };
+        let list = List::new(items).block(block).highlight_style(
+            Style::default()
+                .bg(SEL_COLOR)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        );
+        frame.render_stateful_widget(list, area, &mut self.list_state);
+    }
+}
+

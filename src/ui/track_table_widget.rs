@@ -105,6 +105,11 @@ impl SelectableState for TrackTableWidget {
     fn selectable(&self) -> bool {
         self.selected_col.is_none()
     }
+
+    fn leave(&mut self) {
+        self.selected_col = None;
+        self.select(None);
+    }
 }
 
 impl TrackTableWidget {
