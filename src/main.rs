@@ -56,8 +56,11 @@ fn test_identify(json_strings: Vec<String>) -> Vec<File> {
 use clap::{App, AppSettings, Arg};
 
 use log::{info};
+#[cfg(debug_assertions)]
 use log4rs;
+
 fn main() {
+    #[cfg(debug_assertions)]
     log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
     info!("test");
     
