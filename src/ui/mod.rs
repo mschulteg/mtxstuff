@@ -18,7 +18,8 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use std::io;
+use tui::Frame;
+use std::io::{self, Stdout};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -292,6 +293,25 @@ impl<'a> GroupTabData<'a> {
             .selected()
             .and_then(|selected| self.groups.get(selected))
     }
+    
+    fn render(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+        let horiz_split = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
+            .split(area);
+        let vert_split = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .split(horiz_split[1]);
+
+        self.group_files_list.render(frame, vert_split[1]);
+        self.track_table.render(frame, vert_split[0]);
+        self.group_list.render(frame, horiz_split[0]);
+
+        if self.active_widget == ActiveWidget::Popup {
+            self.popup_data.render_widget(frame, area);
+        }
+    }
 }
 
 pub fn main_loop(
@@ -387,32 +407,13 @@ pub fn main_loop(
 
             rect.render_widget(tabs, chunks[0]);
 
-            let mut render_maintab = |tab_data: &mut GroupTabData| {
-                let horiz_split = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
-                    .split(chunks[1]);
-                let vert_split = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                    .split(horiz_split[1]);
-
-                tab_data.group_files_list.render(rect, vert_split[1]);
-                tab_data.track_table.render(rect, vert_split[0]);
-                tab_data.group_list.render(rect, horiz_split[0]);
-
-                if tab_data.active_widget == ActiveWidget::Popup {
-                    tab_data.popup_data.render_widget(rect, chunks[1]);
-                }
-            };
-
             match active_menu_item {
                 MenuItem::Home => rect.render_widget(render_home(), chunks[1]),
                 MenuItem::Subs => {
-                    render_maintab(&mut sub_tab_data);
+                    sub_tab_data.render(rect, chunks[1]);
                 }
                 MenuItem::Audio => {
-                    render_maintab(&mut audio_tab_data);
+                    audio_tab_data.render(rect, chunks[1]);
                 }
             }
             rect.render_widget(progressbar, chunks[2]);

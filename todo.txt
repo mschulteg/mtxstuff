@@ -8,3 +8,4 @@ NEW:
 - Improve command generator popup
 - Select active block
 - Pop popups from stack
+- Make Frame<CrosstermBackend<Stdout>> generic for popup trait
