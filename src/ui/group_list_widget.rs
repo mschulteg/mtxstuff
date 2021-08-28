@@ -65,13 +65,29 @@ impl GroupListWidget {
         }
         new
     }
+
+    pub(crate) fn widget_type() -> ActiveWidget {
+        ActiveWidget::Groups
+    }
+
     //TODO: remove groups, maybe keep a copy
-    pub(crate) fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+    pub(crate) fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        active_widget: ActiveWidget,
+    ) {
+        let border_style = if Self::widget_type() == active_widget {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
         let groupnames_block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .title("Groups")
-            .border_type(BorderType::Plain);
+            .border_type(BorderType::Plain)
+            .border_style(border_style);
 
         let groupnames_items: Vec<_> = (0..self.num_groups)
             .map(|idx| {

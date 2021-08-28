@@ -132,15 +132,24 @@ impl TrackTableWidget {
         }
     }
 
+    pub(crate) fn widget_type() -> ActiveWidget {
+        ActiveWidget::Details
+    }
+
     pub(crate) fn get_keys_copy(&self) -> &[GroupKey] {
         &self.keys_copy
     }
 
-    pub(crate) fn get_keys_copy_mut(&mut self) -> &mut [GroupKey]{
+    pub(crate) fn get_keys_copy_mut(&mut self) -> &mut [GroupKey] {
         &mut self.keys_copy
     }
 
-    pub(crate) fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+    pub(crate) fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        active_widget: ActiveWidget,
+    ) {
         let highlight_style = Style::default()
             .bg(SEL_COLOR)
             .fg(Color::Black)
@@ -179,6 +188,11 @@ impl TrackTableWidget {
                 }))
             })
             .collect();
+        let border_style = if Self::widget_type() == active_widget {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
 
         let group_detail = Table::new(group_detail_rows);
         let group_detail = group_detail
@@ -209,7 +223,8 @@ impl TrackTableWidget {
                     .borders(Borders::ALL)
                     .style(Style::default().fg(Color::White))
                     .title("Detail")
-                    .border_type(BorderType::Plain),
+                    .border_type(BorderType::Plain)
+                    .border_style(border_style),
             )
             .widths(&[
                 Constraint::Min(10),

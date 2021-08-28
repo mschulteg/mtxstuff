@@ -68,6 +68,10 @@ impl GroupFilesListWidget {
     //     let file_names: Vec<String> = file_names.into_iter().map(|s| s.to_string()).collect();
     //     Self {file_names, ..Self::default()}
     // }
+    pub(crate) fn widget_type() -> ActiveWidget {
+        ActiveWidget::Files
+    }
+
     pub(crate) fn from_group(group: Option<&Group>) -> Self {
         let mut new = Self::default();
         new.set_filenames(group);
@@ -83,7 +87,12 @@ impl GroupFilesListWidget {
         }
     }
 
-    pub(crate) fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+    pub(crate) fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        active_widget: ActiveWidget,
+    ) {
         // Group files
         let group_files_items: Vec<_> = self
             .file_names
@@ -96,13 +105,20 @@ impl GroupFilesListWidget {
             })
             .collect();
 
+        let border_style = if Self::widget_type() == active_widget {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
+
         let group_files = List::new(group_files_items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .style(Style::default().fg(Color::White))
                     .title("Files")
-                    .border_type(BorderType::Plain),
+                    .border_type(BorderType::Plain)
+                    .border_style(border_style),
             )
             .highlight_style(
                 Style::default()

@@ -193,6 +193,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             },
             Action::NavigateBackward(src_widget) => match src_widget {
                 ActiveWidget::Popup => {
+                    self.popup_data.popup_stack.pop();
                     self.group_files_list.leave();
                     self.track_table.leave();
                     self.active_widget = ActiveWidget::Groups;
@@ -230,6 +231,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                         .expect("Currently edit item must exist")
                         .name = Some(string);
                 }
+                self.popup_data.popup_stack.pop();
                 // This is the same as above in Action::NavigateBackward(Popup)
                 // Find a better solution
                 //self.group_files_list.leave();
@@ -304,12 +306,12 @@ impl<'a> GroupTabData<'a> {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(horiz_split[1]);
 
-        self.group_files_list.render(frame, vert_split[1]);
-        self.track_table.render(frame, vert_split[0]);
-        self.group_list.render(frame, horiz_split[0]);
+        self.group_files_list.render(frame, vert_split[1], self.active_widget);
+        self.track_table.render(frame, vert_split[0], self.active_widget);
+        self.group_list.render(frame, horiz_split[0], self.active_widget);
 
         if self.active_widget == ActiveWidget::Popup {
-            self.popup_data.render_widget(frame, area);
+            self.popup_data.render_widget(frame, area, self.active_widget == ActiveWidget::Popup);
         }
     }
 }

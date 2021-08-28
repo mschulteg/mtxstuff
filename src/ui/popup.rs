@@ -1,8 +1,8 @@
-use super::{centered_rect, centered_rect_with_height};
 use super::selectable_state::SelectableState;
 use super::Action;
 use super::ActiveWidget;
 use super::KeyPressConsumer;
+use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
 use std::io::Stdout;
 use tui::layout::Constraint;
@@ -23,7 +23,12 @@ const SEL_COLOR: Color = Color::LightCyan;
 
 // TODO: Frame<B: Backend>
 pub(crate) trait PopupRender {
-    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect);
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        highlight: bool,
+    );
 }
 
 pub(crate) trait Popup: PopupRender + KeyPressConsumer {}
@@ -35,9 +40,15 @@ pub(crate) struct PopupRenderer {
 }
 
 impl PopupRender for PopupRenderer {
-    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
-        for popup in self.popup_stack.iter_mut() {
-            popup.render_widget(frame, area);
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        let stack_len = self.popup_stack.len();
+        for (i, popup) in self.popup_stack.iter_mut().enumerate() {
+            popup.render_widget(frame, area, highlight && i == stack_len - 1);
         }
     }
 }
@@ -60,12 +71,23 @@ pub(crate) struct CommandPopup {
 }
 
 impl CommandPopup {
-    fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+    fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        let border_style = if highlight {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
         let block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .title("Saved to mtx_commands.sh")
-            .border_type(BorderType::Thick);
+            .border_type(BorderType::Thick)
+            .border_style(border_style);
 
         let items: Vec<_> = {
             self.commands
@@ -91,8 +113,13 @@ impl CommandPopup {
 }
 
 impl PopupRender for CommandPopup {
-    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
-        self.render(frame, area);
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        self.render(frame, area, highlight);
     }
 }
 
@@ -136,15 +163,26 @@ pub(crate) struct EditPopup {
 use unicode_width::UnicodeWidthStr;
 
 impl EditPopup {
-    fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
+    fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        highlight: bool,
+    ) {
         let area = centered_rect_with_height(50, 3, area);
+        let border_style = if highlight {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
         let input = Paragraph::new(self.input.as_ref())
             .style(Style::default().fg(Color::White))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title("Edit string")
-                    .border_type(BorderType::Thick),
+                    .border_type(BorderType::Thick)
+                    .border_style(border_style),
             );
         frame.set_cursor(
             // Put cursor past the end of the input text
@@ -158,8 +196,13 @@ impl EditPopup {
 }
 
 impl PopupRender for EditPopup {
-    fn render_widget(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
-        self.render(frame, area);
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        self.render(frame, area, highlight);
     }
 }
 
