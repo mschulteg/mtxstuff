@@ -81,9 +81,8 @@ impl<'a> Command<'a> {
             Flag::Forced => "flag-forced",
             Flag::Enabled => "flag-enabled",
         };
-        arguments.push(flag_str.to_owned());
         let value = if value { "1" } else { "0" };
-        arguments.push(value.to_owned());
+        arguments.push(format!("{}={}", flag_str, value));
         arguments
     }
 }
