@@ -3,6 +3,7 @@ use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
+use super::SEL_COLOR;
 
 use crossterm::event::KeyCode;
 use tui::layout::Constraint;
@@ -16,8 +17,6 @@ use tui::{
     widgets::{Block, BorderType, Borders, TableState},
     Frame,
 };
-
-const SEL_COLOR: Color = Color::LightCyan;
 
 #[derive(Clone, Default)]
 pub(crate) struct TrackTableWidget {

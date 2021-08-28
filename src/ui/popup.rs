@@ -3,11 +3,9 @@ use super::Action;
 use super::ActiveWidget;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
+use super::SEL_COLOR;
 use crossterm::event::KeyCode;
 use std::io::Stdout;
-use tui::layout::Constraint;
-use tui::layout::Direction;
-use tui::layout::Layout;
 use tui::widgets::Clear;
 use tui::widgets::Paragraph;
 use tui::{
@@ -18,8 +16,6 @@ use tui::{
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
-
-const SEL_COLOR: Color = Color::LightCyan;
 
 // TODO: Frame<B: Backend>
 pub(crate) trait PopupRender {

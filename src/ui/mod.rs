@@ -28,11 +28,11 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, BorderType, Borders, Clear, Paragraph, Tabs},
+    widgets::{Block, BorderType, Borders, Paragraph, Tabs},
     Terminal,
 };
 
-const SEL_COLOR: Color = Color::LightCyan;
+const SEL_COLOR: Color = Color::Cyan;
 
 enum Event<I> {
     Input(I),
