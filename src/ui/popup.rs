@@ -1,9 +1,14 @@
+use super::{centered_rect, centered_rect_with_height};
 use super::selectable_state::SelectableState;
 use super::Action;
 use super::ActiveWidget;
 use super::KeyPressConsumer;
 use crossterm::event::KeyCode;
 use std::io::Stdout;
+use tui::layout::Constraint;
+use tui::layout::Direction;
+use tui::layout::Layout;
+use tui::widgets::Clear;
 use tui::widgets::Paragraph;
 use tui::{
     backend::CrosstermBackend,
@@ -79,6 +84,8 @@ impl CommandPopup {
                 .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         );
+        let area = centered_rect(80, 80, area);
+        frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.list_state);
     }
 }
@@ -130,11 +137,7 @@ use unicode_width::UnicodeWidthStr;
 
 impl EditPopup {
     fn render<B: tui::backend::Backend>(&mut self, frame: &mut Frame<B>, area: Rect) {
-        // let block = Block::default()
-        //     .borders(Borders::ALL)
-        //     .style(Style::default().fg(Color::White))
-        //     .title("Edit string")
-        //     .border_type(BorderType::Thick);
+        let area = centered_rect_with_height(50, 3, area);
         let input = Paragraph::new(self.input.as_ref())
             .style(Style::default().fg(Color::White))
             .block(
@@ -149,6 +152,7 @@ impl EditPopup {
             // Move one line down, from the border to the input line
             area.y + 1,
         );
+        frame.render_widget(Clear, area);
         frame.render_widget(input, area);
     }
 }

@@ -5,7 +5,6 @@ OLD:
 NEW:
 - Quit correctly without artifacts
 - Refresh changed files (automatically or via button)
-- Edit popup
 - Improve command generator popup
-- Prevent global keys H,S,A,Q from working when in popups
-- Different popup sizes
+- Select active block
+- Pop popups from stack

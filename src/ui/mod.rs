@@ -101,6 +101,35 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
+    let height_rest = if r.height >= height_y {
+        r.height - height_y
+    } else {0};
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(height_rest / 2),
+                Constraint::Length(height_y),
+                Constraint::Length(height_rest / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
+}
+
 pub(crate) trait KeyPressConsumer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
 }
@@ -202,9 +231,9 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 }
                 // This is the same as above in Action::NavigateBackward(Popup)
                 // Find a better solution
-                self.group_files_list.leave();
-                self.track_table.leave();
-                self.active_widget = ActiveWidget::Groups;
+                //self.group_files_list.leave();
+                //self.track_table.leave();
+                self.active_widget = ActiveWidget::Details;
             }
             Action::LoadGroup => self.load_selected_group(),
             switch_tab @ Action::SwitchTab(_) => return switch_tab,
@@ -373,10 +402,7 @@ pub fn main_loop(
                 tab_data.group_list.render(rect, horiz_split[0]);
 
                 if tab_data.active_widget == ActiveWidget::Popup {
-                    //let block = Block::default().title("Popup").borders(Borders::ALL);
-                    let popup_area = centered_rect(80, 80, chunks[1]);
-                    rect.render_widget(Clear, popup_area);
-                    tab_data.popup_data.render_widget(rect, popup_area);
+                    tab_data.popup_data.render_widget(rect, chunks[1]);
                 }
             };
 
