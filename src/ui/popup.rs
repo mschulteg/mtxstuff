@@ -3,6 +3,7 @@ use super::Action;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use super::SEL_COLOR;
+use super::FocusState;
 use crossterm::event::KeyCode;
 use std::fs::File;
 use std::io::prelude::*;
@@ -24,7 +25,7 @@ pub(crate) trait PopupRender {
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     );
 }
 
@@ -47,11 +48,16 @@ impl PopupRender for PopupRenderer {
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
         let stack_len = self.popup_stack.len();
         for (i, popup) in self.popup_stack.iter_mut().enumerate() {
-            popup.render_widget(frame, area, highlight && i == stack_len - 1);
+            let focus = if focus == FocusState::Highlight && i == stack_len - 1 {
+                FocusState::Highlight
+            } else {
+                FocusState::Background
+            };
+            popup.render_widget(frame, area, focus);
         }
     }
 }
@@ -84,13 +90,9 @@ impl CommandPopup {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
-        let border_style = if highlight {
-            Style::default().fg(SEL_COLOR)
-        } else {
-            Style::default()
-        };
+        let border_style = Style::default().fg(focus.border_color());
         let block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
@@ -136,9 +138,9 @@ impl PopupRender for CommandPopup {
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
-        self.render(frame, area, highlight);
+        self.render(frame, area, focus);
     }
 }
 
@@ -191,14 +193,10 @@ impl EditPopup {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
         let area = centered_rect_with_height(50, 3, area);
-        let border_style = if highlight {
-            Style::default().fg(SEL_COLOR)
-        } else {
-            Style::default()
-        };
+        let border_style = Style::default().fg(focus.border_color());
         let input = Paragraph::new(self.input.as_ref())
             .style(Style::default().fg(Color::White))
             .block(
@@ -224,9 +222,9 @@ impl PopupRender for EditPopup {
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
-        self.render(frame, area, highlight);
+        self.render(frame, area, focus);
     }
 }
 
@@ -261,14 +259,10 @@ impl MessagePopup {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
         let area = centered_rect_with_height(50, 5, area);
-        let border_style = if highlight {
-            Style::default().fg(SEL_COLOR)
-        } else {
-            Style::default()
-        };
+        let border_style = Style::default().fg(focus.border_color());
         let input = Paragraph::new(self.message.as_ref())
             .style(Style::default().fg(Color::White))
             .block(
@@ -287,9 +281,9 @@ impl PopupRender for MessagePopup {
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
         area: Rect,
-        highlight: bool,
+        focus: FocusState,
     ) {
-        self.render(frame, area, highlight);
+        self.render(frame, area, focus);
     }
 }
 

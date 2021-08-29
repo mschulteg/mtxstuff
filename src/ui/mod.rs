@@ -77,6 +77,54 @@ pub(crate) enum Action {
     Pass,
 }
 
+#[derive(PartialEq, Copy, Clone)]
+pub(crate) enum FocusState {
+    Background,
+    Foreground,
+    Highlight,
+}
+
+impl FocusState {
+    fn determine(
+        active_widget: ActiveWidget,
+        target_widget: ActiveWidget,
+        popup_active: bool,
+    ) -> Self {
+        if popup_active {
+            return Self::Background;
+        }
+        if active_widget == target_widget {
+            Self::Highlight
+        } else {
+            Self::Foreground
+        }
+    }
+
+    fn text_color(&self) -> Color {
+        match self {
+            FocusState::Background => Color::DarkGray,
+            FocusState::Foreground => Color::White,
+            FocusState::Highlight => Color::White,
+        }
+    }
+
+    fn sel_color(&self) -> Color {
+        match self {
+            FocusState::Background => Color::DarkGray,
+            FocusState::Foreground => Color::Cyan,
+            FocusState::Highlight => Color::White,
+        }
+    }
+
+    fn border_color(&self) -> Color {
+        match self {
+            FocusState::Background => Color::DarkGray,
+            FocusState::Foreground => Color::White,
+            FocusState::Highlight => Color::Cyan,
+        }
+    }
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -296,15 +344,36 @@ impl<'a> GroupTabData<'a> {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(horiz_split[1]);
 
-        self.group_files_list
-            .render(frame, vert_split[1], self.active_widget);
-        self.track_table
-            .render(frame, vert_split[0], self.active_widget);
-        self.group_list
-            .render(frame, horiz_split[0], self.active_widget);
+        self.group_files_list.render(
+            frame,
+            vert_split[1],
+            FocusState::determine(
+                self.active_widget,
+                GroupFilesListWidget::widget_type(),
+                self.popup_data.active(),
+            ),
+        );
+        self.track_table.render(
+            frame,
+            vert_split[0],
+            FocusState::determine(
+                self.active_widget,
+                GroupFilesListWidget::widget_type(),
+                self.popup_data.active(),
+            ),
+        );
+        self.group_list.render(
+            frame,
+            horiz_split[0],
+            FocusState::determine(
+                self.active_widget,
+                GroupFilesListWidget::widget_type(),
+                self.popup_data.active(),
+            ),
+        );
 
         self.popup_data
-            .render_widget(frame, area, self.popup_data.active());
+            .render_widget(frame, area, FocusState::Highlight);
     }
 }
 

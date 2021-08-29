@@ -2,6 +2,7 @@ use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
+use super::FocusState;
 use super::SEL_COLOR;
 
 use crossterm::event::KeyCode;
@@ -74,16 +75,12 @@ impl GroupListWidget {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        active_widget: ActiveWidget,
+        focus: FocusState,
     ) {
-        let border_style = if Self::widget_type() == active_widget {
-            Style::default().fg(SEL_COLOR)
-        } else {
-            Style::default()
-        };
+        let border_style = Style::default().fg(focus.border_color());
         let groupnames_block = Block::default()
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White))
+            .style(Style::default().fg(focus.text_color()))
             .title("Groups")
             .border_type(BorderType::Plain)
             .border_style(border_style);
@@ -101,7 +98,7 @@ impl GroupListWidget {
             .block(groupnames_block)
             .highlight_style(
                 Style::default()
-                    .bg(SEL_COLOR)
+                    .bg(focus.sel_color())
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
