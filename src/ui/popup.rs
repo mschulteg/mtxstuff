@@ -1,3 +1,4 @@
+use super::centered_rect_fit_text;
 use super::selectable_state::SelectableState;
 use super::Action;
 use super::KeyPressConsumer;
@@ -5,6 +6,7 @@ use super::{centered_rect, centered_rect_with_height};
 use super::SEL_COLOR;
 use super::FocusState;
 use crossterm::event::KeyCode;
+use tui::layout::Alignment;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Stdout;
@@ -261,16 +263,25 @@ impl MessagePopup {
         area: Rect,
         focus: FocusState,
     ) {
-        let area = centered_rect_with_height(50, 5, area);
+        let margin_y = 2;
+        let area = centered_rect_fit_text(self.message.as_ref(), 2, margin_y, area);
+        let mut spans = Vec::<Spans>::new();
+        for _ in 0..margin_y {
+            // add empty lines to vertically center text
+            spans.push(Spans::from(vec![Span::raw("")]));
+        }
+        spans.push(Spans::from(vec![Span::raw(&self.message)]));
+        //let input = Paragraph::new(self.message.as_ref())
         let border_style = Style::default().fg(focus.border_color());
-        let input = Paragraph::new(self.message.as_ref())
+        let input = Paragraph::new(spans)
             .style(Style::default().fg(Color::White))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Thick)
                     .border_style(border_style),
-            );
+            )
+            .alignment(Alignment::Center);
         frame.render_widget(Clear, area);
         frame.render_widget(input, area);
     }

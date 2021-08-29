@@ -150,6 +150,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         )
         .split(popup_layout[1])[1]
 }
+use unicode_width::UnicodeWidthStr;
 
 fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
     let height_rest = if r.height >= height_y {
@@ -181,6 +182,45 @@ fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
         )
         .split(popup_layout[1])[1]
 }
+
+fn centered_rect_fit_text(text: &str, margin_x: u16, margin_y: u16, r: Rect) -> Rect {
+    let height = text.matches('\n').count() as u16 + 3 + margin_y * 2;
+    let height_rest = if r.height >= height {
+        r.height - height
+    } else {
+        0
+    };
+    let width = text.split('\n').map(|str| str.width()).max().unwrap() as u16 + 2 + margin_x * 2;
+    let width_rest = if r.width >= width {
+        r.width - width
+    } else {
+        0
+    };
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(height_rest / 2),
+                Constraint::Length(height),
+                Constraint::Length(height_rest / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Length(width_rest / 2),
+                Constraint::Length(width),
+                Constraint::Length(width_rest / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
+}
+
 
 pub(crate) trait KeyPressConsumer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
