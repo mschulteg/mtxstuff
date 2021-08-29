@@ -4,6 +4,8 @@ use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use super::SEL_COLOR;
 use crossterm::event::KeyCode;
+use std::fs::File;
+use std::io::prelude::*;
 use std::io::Stdout;
 use tui::widgets::Clear;
 use tui::widgets::Paragraph;
@@ -71,6 +73,13 @@ pub(crate) struct CommandPopup {
 }
 
 impl CommandPopup {
+    pub(crate) fn new<B: IntoIterator<Item=String>>(commands: B) -> Self {
+        let mut new = CommandPopup::default();
+        new.commands.extend(commands);
+        new.try_enter();
+        new
+    }
+
     fn render<B: tui::backend::Backend>(
         &mut self,
         frame: &mut Frame<B>,
@@ -110,6 +119,16 @@ impl CommandPopup {
         frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.list_state);
     }
+
+    fn to_file(&self) -> std::io::Result<()>{
+        let mut file = File::create("mtx_commands.sh")?;
+        file.write_all(b"#!/bin/sh\n")?;
+        for cmd in self.commands.iter() {
+            file.write_all(cmd.as_bytes())?;
+            file.write_all(b"\n")?;
+        }
+        Ok(())
+    }
 }
 
 impl PopupRender for CommandPopup {
@@ -134,6 +153,12 @@ impl KeyPressConsumer for CommandPopup {
             }
             KeyCode::Esc => {
                 return Action::ClosePopup;
+            }
+            KeyCode::Enter => {
+                match self.to_file() {
+                    Ok(_) => return Action::ShowMessage("Commands were saved".to_string()),
+                    Err(err) => return Action::ShowMessage(format!("Commands could not be saved: {}", err)),
+                }
             }
             _ => {}
         }

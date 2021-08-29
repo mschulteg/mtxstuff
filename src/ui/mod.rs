@@ -3,7 +3,7 @@ mod group_list_widget;
 mod popup;
 mod selectable_state;
 mod track_table_widget;
-use crate::ui::popup::PopupRender;
+use crate::ui::popup::{MessagePopup, PopupRender};
 
 use self::popup::EditPopup;
 
@@ -69,6 +69,7 @@ pub(crate) enum Action {
     NavigateBackward(ActiveWidget),
     EditString(String),
     EditStringResult(Option<String>),
+    ShowMessage(String),
     LoadGroup,
     SwitchTab(MenuItem),
     ClosePopup,
@@ -220,6 +221,10 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 let new_popup = EditPopup { input: string };
                 self.popup_data.popup_stack.push(Box::new(new_popup));
             }
+            Action::ShowMessage(string) => {
+                let new_popup = MessagePopup { message: string };
+                self.popup_data.popup_stack.push(Box::new(new_popup));
+            }
             Action::EditStringResult(res) => {
                 if let Some(string) = res {
                     let row = self
@@ -243,8 +248,6 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
     }
 }
 
-use std::fs::File;
-use std::io::prelude::*;
 impl<'a> GroupTabData<'a> {
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         GroupTabData {
@@ -263,20 +266,12 @@ impl<'a> GroupTabData<'a> {
     fn generate_commands(&mut self) {
         let sel_group = self.selected_group().unwrap();
         let commands = sel_group.apply_changes(&self.track_table.get_keys_copy(), self.track_type);
-        let mut file = File::create("mtx_commands.sh").unwrap();
         let strings: Vec<_> = commands
             .iter()
             .map(|cmd| cmd.to_cmd_string())
             .flatten()
             .collect();
-        file.write_all(b"#!/bin/sh\n").unwrap();
-        for cmd in strings.iter() {
-            file.write_all(cmd.as_bytes()).unwrap();
-            file.write_all(b"\n").unwrap();
-        }
-        let mut command_popup = CommandPopup::default();
-        command_popup.commands.extend(strings);
-        command_popup.try_enter(); // Last chance we get to call Trait method
+        let command_popup = CommandPopup::new(strings);
         self.popup_data.popup_stack.push(Box::new(command_popup));
     }
 

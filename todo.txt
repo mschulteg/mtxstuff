@@ -11,3 +11,4 @@ NEW:
 - Only generate shell file on request, add option to run the commands
 - Change name property in generate_commands
 - Handle "unset" for track name and lang
+- Variable size message popup
