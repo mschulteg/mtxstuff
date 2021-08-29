@@ -1,15 +1,15 @@
 use super::centered_rect_fit_text;
 use super::selectable_state::SelectableState;
 use super::Action;
-use super::KeyPressConsumer;
-use super::{centered_rect, centered_rect_with_height};
-use super::SEL_COLOR;
 use super::FocusState;
+use super::KeyPressConsumer;
+use super::SEL_COLOR;
+use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
-use tui::layout::Alignment;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Stdout;
+use tui::layout::Alignment;
 use tui::widgets::Clear;
 use tui::widgets::Paragraph;
 use tui::{
@@ -81,7 +81,7 @@ pub(crate) struct CommandPopup {
 }
 
 impl CommandPopup {
-    pub(crate) fn new<B: IntoIterator<Item=String>>(commands: B) -> Self {
+    pub(crate) fn new<B: IntoIterator<Item = String>>(commands: B) -> Self {
         let mut new = CommandPopup::default();
         new.commands.extend(commands);
         new.try_enter();
@@ -98,7 +98,10 @@ impl CommandPopup {
         let block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
-            .title("Commands Preview - Enter to save commands to mtx_commands.sh - Esc to abort")
+            .title(Span::styled(
+                "Commands Preview - Enter to save commands to mtx_commands.sh - Esc to abort",
+                Style::default().add_modifier(Modifier::BOLD),
+            ))
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
@@ -124,7 +127,7 @@ impl CommandPopup {
         frame.render_stateful_widget(list, area, &mut self.list_state);
     }
 
-    fn to_file(&self) -> std::io::Result<()>{
+    fn to_file(&self) -> std::io::Result<()> {
         let mut file = File::create("mtx_commands.sh")?;
         file.write_all(b"#!/bin/sh\n")?;
         for cmd in self.commands.iter() {
@@ -158,12 +161,12 @@ impl KeyPressConsumer for CommandPopup {
             KeyCode::Esc => {
                 return Action::ClosePopup;
             }
-            KeyCode::Enter => {
-                match self.to_file() {
-                    Ok(_) => return Action::ShowMessage("Commands were saved".to_string()),
-                    Err(err) => return Action::ShowMessage(format!("Commands could not be saved: {}", err)),
+            KeyCode::Enter => match self.to_file() {
+                Ok(_) => return Action::ShowMessage("Commands were saved".to_string()),
+                Err(err) => {
+                    return Action::ShowMessage(format!("Commands could not be saved: {}", err))
                 }
-            }
+            },
             _ => {}
         }
         Action::Pass

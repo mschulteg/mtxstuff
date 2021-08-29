@@ -398,7 +398,7 @@ impl<'a> GroupTabData<'a> {
             vert_split[0],
             FocusState::determine(
                 self.active_widget,
-                GroupFilesListWidget::widget_type(),
+                TrackTableWidget::widget_type(),
                 self.popup_data.active(),
             ),
         );
@@ -407,7 +407,7 @@ impl<'a> GroupTabData<'a> {
             horiz_split[0],
             FocusState::determine(
                 self.active_widget,
-                GroupFilesListWidget::widget_type(),
+                GroupListWidget::widget_type(),
                 self.popup_data.active(),
             ),
         );
@@ -474,7 +474,7 @@ pub fn main_loop(
                 )
                 .split(size);
 
-            let progressbar = Paragraph::new("Bla")
+            let progressbar = Paragraph::new("Press F2 to generate and show the commands that will apply the changes.")
                 .style(Style::default().fg(Color::LightCyan))
                 .alignment(Alignment::Center)
                 .block(

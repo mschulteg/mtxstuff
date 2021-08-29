@@ -71,6 +71,24 @@ impl<'a> Command<'a> {
         }
     }
 
+    pub fn track_set_name(&mut self, ttype: TrackType, track_no: i64, name: Option<&str>) {
+        let tracks = match ttype {
+            TrackType::Subtitles => &self.file.subtitle_tracks,
+            TrackType::Audio => &self.file.audio_tracks,
+            TrackType::Video => &self.file.video_tracks,
+        };
+        let sel_track = tracks.get(track_no as usize).unwrap();
+        self.arguments.push("--edit".to_owned());
+        self.arguments.push(format!("track:@{}", sel_track.id + 1));
+        if let Some(name) = name {
+            self.arguments.push("--set".to_owned());
+            self.arguments.push(format!("name=\"{}\"", name));
+        } else {
+            self.arguments.push("--delete".to_owned());
+            self.arguments.push("name".to_owned());
+        }
+    }
+
     fn track_set_flag(track: &Track, flag: Flag, value: bool) -> Vec<String> {
         let mut arguments = Vec::new();
         arguments.push("--edit".to_owned());

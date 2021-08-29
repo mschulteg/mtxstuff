@@ -46,6 +46,9 @@ impl <'a>Group<'a>{
         let mut cmds: Vec<_> = self.files.iter().map(|file| Command::new(file)).collect();
         self.key.iter().zip(keys.iter()).enumerate().for_each(|(idx,(cur, changed))| {
             for cmd in cmds.iter_mut() {
+                if cur.name != changed.name {
+                    cmd.track_set_name(track_type, idx as i64, changed.name.as_deref());
+                }
                 if cur.default != changed.default {
                     cmd.track_set(track_type, Flag::Default, idx as i64, changed.default, false);
                 }
