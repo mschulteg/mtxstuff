@@ -6,6 +6,8 @@ NEW:
 - Quit correctly without artifacts
 - Refresh changed files (automatically or via button)
 - Improve command generator popup
-- Select active block
-- Pop popups from stack
 - Make Frame<CrosstermBackend<Stdout>> generic for popup trait
+- Show controls somehwere (at the bottom and/or inside the popups)
+- Only generate shell file on request, add option to run the commands
+- Change name property in generate_commands
+- Handle "unset" for track name and lang

@@ -1,6 +1,5 @@
 use super::selectable_state::SelectableState;
 use super::Action;
-use super::ActiveWidget;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use super::SEL_COLOR;
@@ -35,6 +34,12 @@ pub(crate) struct PopupRenderer {
     pub(crate) popup_stack: Vec<Box<dyn Popup>>,
 }
 
+impl PopupRenderer {
+    pub(crate) fn active(&self) -> bool {
+        self.popup_stack.len() != 0
+    }
+}
+
 impl PopupRender for PopupRenderer {
     fn render_widget(
         &mut self,
@@ -52,7 +57,6 @@ impl PopupRender for PopupRenderer {
 impl KeyPressConsumer for PopupRenderer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         if let Some(active_popup) = self.popup_stack.last_mut() {
-            log::info!("HERE");
             active_popup.process_key(key_code)
         } else {
             Action::Pass
@@ -81,7 +85,7 @@ impl CommandPopup {
         let block = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
-            .title("Saved to mtx_commands.sh")
+            .title("Commands Preview - Enter to save commands to mtx_commands.sh - Esc to abort")
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
@@ -129,8 +133,7 @@ impl KeyPressConsumer for CommandPopup {
                 self.navigate_down();
             }
             KeyCode::Esc => {
-                log::info!("We are here: {:?}", self.selected());
-                return Action::NavigateBackward(ActiveWidget::Popup);
+                return Action::ClosePopup;
             }
             _ => {}
         }
@@ -216,7 +219,60 @@ impl KeyPressConsumer for EditPopup {
             }
             KeyCode::Char(char) => {
                 self.input.push(char);
-                log::info!("input is now {:?}", self.input);
+            }
+            _ => {}
+        }
+        Action::Pass
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct MessagePopup {
+    pub(crate) message: String,
+}
+
+impl MessagePopup {
+    fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        let area = centered_rect_with_height(50, 5, area);
+        let border_style = if highlight {
+            Style::default().fg(SEL_COLOR)
+        } else {
+            Style::default()
+        };
+        let input = Paragraph::new(self.message.as_ref())
+            .style(Style::default().fg(Color::White))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .border_style(border_style),
+            );
+        frame.render_widget(Clear, area);
+        frame.render_widget(input, area);
+    }
+}
+
+impl PopupRender for MessagePopup {
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        highlight: bool,
+    ) {
+        self.render(frame, area, highlight);
+    }
+}
+
+impl KeyPressConsumer for MessagePopup {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Esc | KeyCode::Enter => {
+                return Action::ClosePopup;
             }
             _ => {}
         }

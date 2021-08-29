@@ -18,11 +18,11 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use tui::Frame;
 use std::io::{self, Stdout};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
+use tui::Frame;
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -61,7 +61,6 @@ pub(crate) enum ActiveWidget {
     Groups,
     Details,
     Files,
-    Popup,
 }
 
 #[derive(PartialEq)]
@@ -72,6 +71,7 @@ pub(crate) enum Action {
     EditStringResult(Option<String>),
     LoadGroup,
     SwitchTab(MenuItem),
+    ClosePopup,
     Quit,
     Pass,
 }
@@ -105,7 +105,9 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
     let height_rest = if r.height >= height_y {
         r.height - height_y
-    } else {0};
+    } else {
+        0
+    };
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -153,15 +155,18 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             self.active_widget,
             key_code
         );
-        let res_action = match self.active_widget {
-            ActiveWidget::Groups => self.group_list.process_key(key_code),
-            ActiveWidget::Details => self.track_table.process_key(key_code),
-            ActiveWidget::Popup => self.popup_data.process_key(key_code),
-            ActiveWidget::Files => self.group_files_list.process_key(key_code),
+        let res_action = if self.popup_data.active() {
+            self.popup_data.process_key(key_code)
+        } else {
+            match self.active_widget {
+                ActiveWidget::Groups => self.group_list.process_key(key_code),
+                ActiveWidget::Details => self.track_table.process_key(key_code),
+                ActiveWidget::Files => self.group_files_list.process_key(key_code),
+            }
         };
         // TODO: Match key_codes for GrouTabData itself (Tab switching, Quitting) if not in edit mode
         // For now, only do it if the active widget returned Action::Pass
-        if res_action == Action::Pass && self.active_widget != ActiveWidget::Popup {
+        if res_action == Action::Pass && !self.popup_data.active() {
             match key_code {
                 KeyCode::Char('h') => return Action::SwitchTab(MenuItem::Home),
                 KeyCode::Char('s') => return Action::SwitchTab(MenuItem::Subs),
@@ -191,13 +196,10 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 }
                 _ => {}
             },
+            Action::ClosePopup => {
+                self.popup_data.popup_stack.pop();
+            }
             Action::NavigateBackward(src_widget) => match src_widget {
-                ActiveWidget::Popup => {
-                    self.popup_data.popup_stack.pop();
-                    self.group_files_list.leave();
-                    self.track_table.leave();
-                    self.active_widget = ActiveWidget::Groups;
-                }
                 ActiveWidget::Files => {
                     if self.track_table.try_enter() {
                         self.group_files_list.leave();
@@ -217,7 +219,6 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             Action::EditString(string) => {
                 let new_popup = EditPopup { input: string };
                 self.popup_data.popup_stack.push(Box::new(new_popup));
-                self.active_widget = ActiveWidget::Popup;
             }
             Action::EditStringResult(res) => {
                 if let Some(string) = res {
@@ -232,11 +233,6 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                         .name = Some(string);
                 }
                 self.popup_data.popup_stack.pop();
-                // This is the same as above in Action::NavigateBackward(Popup)
-                // Find a better solution
-                //self.group_files_list.leave();
-                //self.track_table.leave();
-                self.active_widget = ActiveWidget::Details;
             }
             Action::LoadGroup => self.load_selected_group(),
             switch_tab @ Action::SwitchTab(_) => return switch_tab,
@@ -278,7 +274,6 @@ impl<'a> GroupTabData<'a> {
             file.write_all(cmd.as_bytes()).unwrap();
             file.write_all(b"\n").unwrap();
         }
-        self.active_widget = ActiveWidget::Popup;
         let mut command_popup = CommandPopup::default();
         command_popup.commands.extend(strings);
         command_popup.try_enter(); // Last chance we get to call Trait method
@@ -295,7 +290,7 @@ impl<'a> GroupTabData<'a> {
             .selected()
             .and_then(|selected| self.groups.get(selected))
     }
-    
+
     fn render(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let horiz_split = Layout::default()
             .direction(Direction::Horizontal)
@@ -306,13 +301,15 @@ impl<'a> GroupTabData<'a> {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(horiz_split[1]);
 
-        self.group_files_list.render(frame, vert_split[1], self.active_widget);
-        self.track_table.render(frame, vert_split[0], self.active_widget);
-        self.group_list.render(frame, horiz_split[0], self.active_widget);
+        self.group_files_list
+            .render(frame, vert_split[1], self.active_widget);
+        self.track_table
+            .render(frame, vert_split[0], self.active_widget);
+        self.group_list
+            .render(frame, horiz_split[0], self.active_widget);
 
-        if self.active_widget == ActiveWidget::Popup {
-            self.popup_data.render_widget(frame, area, self.active_widget == ActiveWidget::Popup);
-        }
+        self.popup_data
+            .render_widget(frame, area, self.popup_data.active());
     }
 }
 
