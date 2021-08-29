@@ -44,12 +44,16 @@ impl KeyPressConsumer for TrackTableWidget {
                     if selected_col < 4 {
                         self.selected_col = Some(selected_col + 1);
                     }
+                } else {
+                    self.selected_col = Some(0);
                 }
             }
             KeyCode::Left | KeyCode::Char('h') => {
                 if let Some(selected_col) = self.selected_col {
                     if selected_col > 0 {
                         self.selected_col = Some(selected_col - 1);
+                    } else {
+                        self.selected_col = None;
                     }
                 } else {
                     return Action::NavigateBackward(ActiveWidget::Details);
