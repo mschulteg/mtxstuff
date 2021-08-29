@@ -152,10 +152,10 @@ impl PopupRender for CommandPopup {
 impl KeyPressConsumer for CommandPopup {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.navigate_up();
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j')=> {
                 self.navigate_down();
             }
             KeyCode::Esc => {

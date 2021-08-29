@@ -4,8 +4,6 @@ use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
 use super::FocusState;
-use super::SEL_COLOR;
-
 use crossterm::event::KeyCode;
 use tui::{
     layout::Rect,
@@ -24,20 +22,20 @@ pub(crate) struct GroupFilesListWidget {
 impl KeyPressConsumer for GroupFilesListWidget {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 if let Some(down_res) = self.navigate_up() {
                     if !down_res {
                         return Action::NavigateBackward(ActiveWidget::Files);
                     }
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.navigate_down();
             }
             KeyCode::Esc => {
                 return Action::NavigateBackward(ActiveWidget::Files);
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('h') => {
                 return Action::NavigateBackward(ActiveWidget::Files);
             }
             _ => {}

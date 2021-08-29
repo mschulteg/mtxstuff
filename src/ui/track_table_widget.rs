@@ -3,7 +3,7 @@ use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
-use super::{FocusState, SEL_COLOR};
+use super::FocusState;
 
 use crossterm::event::KeyCode;
 use tui::layout::Constraint;
@@ -29,24 +29,24 @@ pub(crate) struct TrackTableWidget {
 impl KeyPressConsumer for TrackTableWidget {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.navigate_up();
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 if let Some(down_res) = self.navigate_down() {
                     if !down_res {
                         return Action::NavigateForward(ActiveWidget::Details);
                     }
                 }
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('l') => {
                 if let Some(selected_col) = self.selected_col {
                     if selected_col < 4 {
                         self.selected_col = Some(selected_col + 1);
                     }
                 }
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('h') => {
                 if let Some(selected_col) = self.selected_col {
                     if selected_col > 0 {
                         self.selected_col = Some(selected_col - 1);

@@ -3,8 +3,6 @@ use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
 use super::FocusState;
-use super::SEL_COLOR;
-
 use crossterm::event::KeyCode;
 use tui::{
     layout::Rect,
@@ -23,15 +21,15 @@ pub(crate) struct GroupListWidget {
 impl KeyPressConsumer for GroupListWidget {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.navigate_up();
                 return Action::LoadGroup;
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j')=> {
                 self.navigate_down();
                 return Action::LoadGroup;
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('l') => {
                 return Action::NavigateForward(ActiveWidget::Groups);
             }
             _ => {}

@@ -112,7 +112,7 @@ impl FocusState {
         match self {
             FocusState::Background => Color::DarkGray,
             FocusState::Foreground => Color::Cyan,
-            FocusState::Highlight => Color::White,
+            FocusState::Highlight => Color::Cyan,
         }
     }
 
@@ -257,7 +257,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
         // For now, only do it if the active widget returned Action::Pass
         if res_action == Action::Pass && !self.popup_data.active() {
             match key_code {
-                KeyCode::Char('h') => return Action::SwitchTab(MenuItem::Home),
+                KeyCode::Char('i') => return Action::SwitchTab(MenuItem::Home),
                 KeyCode::Char('s') => return Action::SwitchTab(MenuItem::Subs),
                 KeyCode::Char('a') => return Action::SwitchTab(MenuItem::Audio),
                 KeyCode::Char('q') => return Action::Quit,
@@ -449,7 +449,7 @@ pub fn main_loop(
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let menu_titles = vec!["Home", "Subs", "Audio", "Quit"];
+    let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
     let mut active_menu_item = MenuItem::Home;
 
     let mut audio_tab_data = GroupTabData::new(groups_audio, TrackType::Audio);
@@ -528,7 +528,7 @@ pub fn main_loop(
                     MenuItem::Subs => sub_tab_data.process_key(event.code),
                     MenuItem::Audio => audio_tab_data.process_key(event.code),
                     _ => match event.code {
-                        KeyCode::Char('h') => Action::SwitchTab(MenuItem::Home),
+                        KeyCode::Char('i') => Action::SwitchTab(MenuItem::Home),
                         KeyCode::Char('s') => Action::SwitchTab(MenuItem::Subs),
                         KeyCode::Char('a') => Action::SwitchTab(MenuItem::Audio),
                         KeyCode::Char('q') => Action::Quit,
