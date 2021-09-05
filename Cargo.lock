@@ -308,7 +308,6 @@ dependencies = [
  "log4rs",
  "serde",
  "serde_json",
- "subprocess",
  "tui",
  "unicode-width",
  "walkdir",
@@ -541,16 +540,6 @@ name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
-name = "subprocess"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "334b801f9ca2529ba9605109f1d2835f15aff94cd6cfe5afe6ce8cf71e5fd3c4"
-dependencies = [
- "libc",
- "winapi",
-]
 
 [[package]]
 name = "syn"

@@ -1,3 +1,5 @@
+use std::process;
+
 use super::file::{File, Flag, Track, TrackType};
 #[derive(Debug)]
 pub struct Command<'a> {
@@ -35,13 +37,20 @@ impl<'a> Command<'a> {
             string.push(' ');
             string.push_str(arg);
         }
-
-        println!("Running command {:?}", string);
-        // let result = Exec::cmd(&self.executable)
-        //         .args(&self.arguments)
-        //         .capture()
-        //         .unwrap()
-        //         .stdout_str();
+        //println!("Running command {:?}", string);
+        let mut command = process::Command::new(&self.executable);
+        let command = command
+                .args(&self.arguments)
+                .arg(&self.file.file_name);
+        println!("Running command {:?}", command);
+        let output = command
+                .output()
+                .unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        println!("stdout was:{}", &stdout);
+        println!("stderr was:{}", &stderr);
+        println!("status: {}", output.status);
     }
 
     pub fn track_set(

@@ -10,3 +10,5 @@ NEW:
 - Handle "unset" for track name and lang (distinguish between unset and "")
 - Also Gray out top and bottom bar when in background?
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
+- CLI --group x --track y without any command should just list the track and not call mtxpropedit
+- Say when mkvtoolnix is not found

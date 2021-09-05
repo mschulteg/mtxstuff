@@ -22,7 +22,7 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
     files
 }
 
-use subprocess::Exec;
+use std::process;
 
 fn test_subprocess(paths: Vec<PathBuf>) -> Vec<String> {
     // -> Vec<Identify> {
@@ -30,15 +30,16 @@ fn test_subprocess(paths: Vec<PathBuf>) -> Vec<String> {
     let json_strings: Vec<String> = paths
         .iter()
         .map(|path| {
-            Exec::cmd("mkvmerge")
+            process::Command::new("mkvmerge")
                 .arg("--identification-format")
                 .arg("json")
                 .arg("--identify")
                 .arg(path)
-                .capture()
+                .output()
                 .unwrap()
-                .stdout_str()
+                .stdout
         })
+        .map(|slice| std::str::from_utf8(&slice).unwrap().to_owned())
         .collect();
     //let stdout = capture_data.stdout_str();
     json_strings
@@ -153,6 +154,25 @@ fn main() {
         _ => panic!(),
     }
 }
+
+#[derive(Copy, Clone, PartialEq)]
+enum TrackCommand {
+    SetForced,
+    SetDefault,
+    SetEnabled,
+    SetDefaultExclusive,
+}
+
+struct TrackCommands {
+    group_no: Option<usize>,
+    track_no: Option<i64>,
+    cmds: Vec<TrackCommand>
+}
+// impl TrackCommands {
+//     fn parse_commands(&clap::ArgMatches){
+
+//     }
+// }
 
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let group_no = sub_matches
