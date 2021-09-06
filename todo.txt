@@ -10,4 +10,5 @@ NEW:
 - Also Gray out top and bottom bar when in background?
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - Say when mkvtoolnix is not found
-- Handle "unset" for track name and lang (distinguish between unset and "")
+- Support multiple track selections and edits in CLI mode
+- Make TrackOperations generic over TrackType

@@ -26,7 +26,6 @@ pub fn key_audlang_audname(file: &File) -> Vec<GroupKey> {
         .map(|track| {
             GroupKey {
                 language: track.language.clone(),
-                //track.name.clone().unwrap_or(String::from("")),
                 name: track.name.clone(),
                 default: track.default,
                 forced: track.forced,
@@ -48,7 +47,7 @@ impl <'a>Group<'a>{
         self.key.iter().zip(keys.iter()).enumerate().for_each(|(idx,(cur, changed))| {
             if cur == changed {return};
             if cur.name != changed.name {
-                ops.add(idx as i64, TrackOperation::SetTitle(&changed.name.as_ref().unwrap()))
+                ops.add(idx as i64, TrackOperation::SetTitle(changed.name.as_deref()))
             }
             if cur.default != changed.default {
                 ops.add(idx as i64, TrackOperation::SetDefault(changed.default));

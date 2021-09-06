@@ -7,7 +7,7 @@ pub(crate) enum TrackOperation<'a> {
     SetDefault(bool),
     SetEnabled(bool),
     SetDefaultExclusive(bool),
-    SetTitle(&'a str),
+    SetTitle(Option<&'a str>),
     SetLang(&'a str),
 }
 
@@ -88,7 +88,7 @@ impl<'a> TrackOperations<'a> {
                     TrackOperations::set_name(
                         &mut arguments,
                         get_track_id(track_no),
-                        Some(val),
+                        val,
                     );
                 }
                 TrackOperation::SetLang(_) => {}

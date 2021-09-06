@@ -1,9 +1,9 @@
+use super::FocusState;
 use crate::group::{Group, GroupKey};
 use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
-use super::FocusState;
 
 use crossterm::event::KeyCode;
 use tui::layout::Constraint;
@@ -74,6 +74,8 @@ impl KeyPressConsumer for TrackTableWidget {
                         1 => {
                             if let Some(ref name) = gkey.name {
                                 return Action::EditString(name.clone());
+                            } else {
+                                return Action::EditString("".to_owned());
                             }
                         }
                         2 => {
@@ -89,6 +91,20 @@ impl KeyPressConsumer for TrackTableWidget {
                     }
                 } else {
                     self.selected_col = Some(0);
+                }
+            }
+            KeyCode::Delete => {
+                if let Some(selected_col) = self.selected_col {
+                    let sel_row = self.selected().unwrap();
+                    let gkey = self.keys_copy.get_mut(sel_row).unwrap();
+                    match selected_col {
+                        1 => {
+                            if gkey.name.is_some() {
+                                gkey.name = None
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
             _ => {}
@@ -158,7 +174,28 @@ impl TrackTableWidget {
             .fg(Color::Black)
             .add_modifier(Modifier::BOLD);
 
-        let create_style = |item: &String, idx_col: usize, idx_row: usize| {
+        let idx_col_to_string = |key_row: &GroupKey, idx_col| match idx_col {
+            0 => Some(key_row.language.clone()),
+            1 => key_row.name.clone(),
+            2 => Some(if key_row.default {
+                "[X]".to_owned()
+            } else {
+                "[ ]".to_owned()
+            }),
+            3 => Some(if key_row.forced {
+                "[X]".to_owned()
+            } else {
+                "[ ]".to_owned()
+            }),
+            4 => Some(if key_row.enabled {
+                "[X]".to_owned()
+            } else {
+                "[ ]".to_owned()
+            }),
+            _ => None,
+        };
+
+        let create_style = |item: Option<&str>, idx_col: usize, idx_row: usize| {
             let mut style = Style::default();
             if let Some(sel_col) = self.selected_col {
                 if sel_col == idx_col && self.selected().unwrap() == idx_row {
@@ -168,14 +205,12 @@ impl TrackTableWidget {
                         .add_modifier(Modifier::BOLD);
                 }
             }
-            if let Some(group_item) = self
-                .keys_orig
-                .get(idx_row)
-                .and_then(|r| r.row().get(idx_col).cloned())
-            {
-                if group_item != *item {
-                    style = style.add_modifier(Modifier::ITALIC);
-                }
+            let keyrow = self.keys_orig.get(idx_row).unwrap();
+            if idx_col_to_string(keyrow, idx_col).as_deref() != item {
+                style = style.add_modifier(Modifier::ITALIC);
+            }
+            if item.is_none() {
+                style = style.fg(Color::DarkGray)
             }
             style
         };
@@ -185,9 +220,15 @@ impl TrackTableWidget {
             .iter()
             .enumerate()
             .map(|(idx_row, keyrow)| {
-                Row::new(keyrow.row().iter().enumerate().map(|(idx_col, item)| {
-                    let cell = Cell::from(Span::raw(item.clone()));
-                    cell.style(create_style(item, idx_col, idx_row))
+                Row::new((0..5).into_iter().map(|idx_col| {
+                    let item = idx_col_to_string(keyrow, idx_col);
+                    let text = if let Some(ref item) = item {
+                        item.clone()
+                    } else {
+                        "unset".to_owned()
+                    };
+                    let cell = Cell::from(Span::raw(text));
+                    cell.style(create_style(item.as_deref(), idx_col, idx_row))
                 }))
             })
             .collect();
