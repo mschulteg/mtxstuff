@@ -7,7 +7,7 @@ mod track_operations;
 
 use crate::ui::main_loop;
 use crate::command::Command;
-use crate::file::{File, Flag, Track, TrackType};
+use crate::file::{File, TrackType};
 use crate::group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
 use crate::track_operations::{TrackOperation, TrackOperations};
 

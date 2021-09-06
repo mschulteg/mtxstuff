@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use super::table::Table;
-use super::file::{File, TrackType, Flag};
+use super::file::{File, TrackType};
 use super::command::Command;
 use crate::track_operations::{TrackOperation, TrackOperations};
 

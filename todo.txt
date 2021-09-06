@@ -7,7 +7,7 @@ NEW:
 - Refresh changed files (automatically or via button)
 - Make Frame<CrosstermBackend<Stdout>> generic for popup trait
 - Add option to run the commands
-- Handle "unset" for track name and lang (distinguish between unset and "")
 - Also Gray out top and bottom bar when in background?
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - Say when mkvtoolnix is not found
+- Handle "unset" for track name and lang (distinguish between unset and "")

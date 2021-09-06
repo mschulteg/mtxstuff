@@ -1,6 +1,7 @@
 use std::process;
 
-use super::file::{File, Flag, Track, TrackType};
+use super::file::File;
+
 #[derive(Debug)]
 pub struct Command<'a> {
     pub executable: String,
@@ -8,9 +9,6 @@ pub struct Command<'a> {
     pub arguments: Vec<String>,
 }
 
-// Command should contain file, arguments need to be generated
-// on a per file basis because each file can have different track_ids even
-// if the sub/aud number is the same
 impl<'a> Command<'a> {
     pub fn new(file: &'a File) -> Self {
         Command {
@@ -54,65 +52,5 @@ impl<'a> Command<'a> {
         println!("stdout was:{}", &stdout);
         println!("stderr was:{}", &stderr);
         println!("status: {}", output.status);
-    }
-
-    pub fn track_set(
-        &mut self,
-        ttype: TrackType,
-        flag: Flag,
-        track_no: i64,
-        value: bool,
-        unset_others: bool,
-    ) {
-        let tracks = match ttype {
-            TrackType::Subtitles => &self.file.subtitle_tracks,
-            TrackType::Audio => &self.file.audio_tracks,
-            TrackType::Video => &self.file.video_tracks,
-        };
-        let sel_track = tracks.get(track_no as usize).unwrap();
-
-        if unset_others {
-            for track in tracks.iter() {
-                let value = sel_track.id == track.id;
-                self.arguments
-                    .extend(Command::track_set_flag(track, flag, value));
-            }
-        } else {
-            self.arguments
-                .extend(Command::track_set_flag(sel_track, flag, value));
-        }
-    }
-
-    pub fn track_set_name(&mut self, ttype: TrackType, track_no: i64, name: Option<&str>) {
-        let tracks = match ttype {
-            TrackType::Subtitles => &self.file.subtitle_tracks,
-            TrackType::Audio => &self.file.audio_tracks,
-            TrackType::Video => &self.file.video_tracks,
-        };
-        let sel_track = tracks.get(track_no as usize).unwrap();
-        self.arguments.push("--edit".to_owned());
-        self.arguments.push(format!("track:@{}", sel_track.id + 1));
-        if let Some(name) = name {
-            self.arguments.push("--set".to_owned());
-            self.arguments.push(format!("name=\"{}\"", name));
-        } else {
-            self.arguments.push("--delete".to_owned());
-            self.arguments.push("name".to_owned());
-        }
-    }
-
-    fn track_set_flag(track: &Track, flag: Flag, value: bool) -> Vec<String> {
-        let mut arguments = Vec::new();
-        arguments.push("--edit".to_owned());
-        arguments.push(format!("track:@{}", track.id + 1));
-        arguments.push("--set".to_owned());
-        let flag_str = match flag {
-            Flag::Default => "flag-default",
-            Flag::Forced => "flag-forced",
-            Flag::Enabled => "flag-enabled",
-        };
-        let value = if value { "1" } else { "0" };
-        arguments.push(format!("{}={}", flag_str, value));
-        arguments
     }
 }

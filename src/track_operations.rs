@@ -1,5 +1,5 @@
 use crate::command::Command;
-use crate::file::{File, Flag, Track, TrackType};
+use crate::file::{File, Flag, TrackType};
 
 #[derive(Copy, Clone, PartialEq)]
 pub(crate) enum TrackOperation<'a> {
