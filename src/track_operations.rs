@@ -49,7 +49,7 @@ impl<'a> TrackOperations<'a> {
             let track_no = cmd.0;
             match cmd.1 {
                 TrackOperation::SetForced(val) => {
-                    TrackOperations::track_set_flag(
+                    TrackOperations::set_flag(
                         &mut arguments,
                         get_track_id(track_no),
                         Flag::Forced,
@@ -57,7 +57,7 @@ impl<'a> TrackOperations<'a> {
                     );
                 }
                 TrackOperation::SetDefault(val) => {
-                    TrackOperations::track_set_flag(
+                    TrackOperations::set_flag(
                         &mut arguments,
                         get_track_id(track_no),
                         Flag::Default,
@@ -65,7 +65,7 @@ impl<'a> TrackOperations<'a> {
                     );
                 }
                 TrackOperation::SetEnabled(val) => {
-                    TrackOperations::track_set_flag(
+                    TrackOperations::set_flag(
                         &mut arguments,
                         get_track_id(track_no),
                         Flag::Enabled,
@@ -76,7 +76,7 @@ impl<'a> TrackOperations<'a> {
                     // TODO: remove bool completely?
                     for track in tracks.iter() {
                         let value = get_track_id(track_no) == track.id;
-                        TrackOperations::track_set_flag(
+                        TrackOperations::set_flag(
                             &mut arguments,
                             track.id,
                             Flag::Default,
@@ -85,7 +85,7 @@ impl<'a> TrackOperations<'a> {
                     }
                 }
                 TrackOperation::SetTitle(val) => {
-                    TrackOperations::track_set_name(
+                    TrackOperations::set_name(
                         &mut arguments,
                         get_track_id(track_no),
                         Some(val),
@@ -97,7 +97,7 @@ impl<'a> TrackOperations<'a> {
         arguments
     }
 
-    pub fn track_set_name(arguments: &mut Vec<String>, track_id: i64, name: Option<&str>) {
+    pub fn set_name(arguments: &mut Vec<String>, track_id: i64, name: Option<&str>) {
         arguments.push("--edit".to_owned());
         arguments.push(format!("track:@{}", track_id + 1));
         if let Some(name) = name {
@@ -109,7 +109,7 @@ impl<'a> TrackOperations<'a> {
         }
     }
 
-    fn track_set_flag(arguments: &mut Vec<String>, track_id: i64, flag: Flag, value: bool) {
+    fn set_flag(arguments: &mut Vec<String>, track_id: i64, flag: Flag, value: bool) {
         arguments.push("--edit".to_owned());
         arguments.push(format!("track:@{}", track_id + 1));
         arguments.push("--set".to_owned());
