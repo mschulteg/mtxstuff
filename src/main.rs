@@ -245,6 +245,10 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         if let Some(set_enabled_value) = set_enabled_value {
             track_ops.add(track_no, TrackOperation::SetEnabled(set_enabled_value))
         };
+        if track_ops.empty(){
+            // Nothing to do
+            return;
+        }
         // Generate and run commands
         let commands: Vec<Command> = sel_group
             .files
