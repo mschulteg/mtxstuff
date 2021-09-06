@@ -12,3 +12,4 @@ NEW:
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - CLI --group x --track y without any command should just list the track and not call mtxpropedit
 - Say when mkvtoolnix is not found
+- Command should contain a file list instead of a file or no files at all (only passed to the execute function)

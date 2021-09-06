@@ -9,7 +9,7 @@ use command::Command;
 use file::{File, Flag, TrackType};
 use group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
 
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
     //let walker = WalkDir::new("/mnt/k/Incoming/tmp/mtxstuff_test").into_iter();
@@ -56,7 +56,7 @@ fn test_identify(json_strings: Vec<String>) -> Vec<File> {
 
 use clap::{App, AppSettings, Arg};
 
-use log::{info};
+use log::info;
 #[cfg(debug_assertions)]
 use log4rs;
 
@@ -64,7 +64,7 @@ fn main() {
     #[cfg(debug_assertions)]
     log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
     info!("test");
-    
+
     let arg_directory = Arg::with_name("directory")
         .help("Path to directory")
         .required(true);
@@ -128,7 +128,7 @@ fn main() {
         .subcommand(
             App::new("tui")
                 .about("controls testing features")
-                .arg(&arg_directory)
+                .arg(&arg_directory),
         )
         .get_matches();
 
@@ -150,29 +150,32 @@ fn main() {
         "subs" => cli_mode(files, sub_name, sub_matches),
         "audio" => cli_mode(files, sub_name, sub_matches),
         "video" => cli_mode(files, sub_name, sub_matches),
-        "tui" => tui_mode(files),//, sub_name, sub_matches),
+        "tui" => tui_mode(files), //, sub_name, sub_matches),
         _ => panic!(),
     }
 }
 
 #[derive(Copy, Clone, PartialEq)]
-enum TrackCommand {
-    SetForced,
-    SetDefault,
-    SetEnabled,
-    SetDefaultExclusive,
+enum TrackOperation<'a> {
+    SetForced(bool),
+    SetDefault(bool),
+    SetEnabled(bool),
+    SetDefaultExclusive(bool),
+    SetTitle(&'a str),
+    SetLang(&'a str),
 }
 
-struct TrackCommands {
+struct TrackOperations<'a> {
     group_no: Option<usize>,
     track_no: Option<i64>,
-    cmds: Vec<TrackCommand>
+    cmds: Vec<TrackOperation<'a>>,
 }
-// impl TrackCommands {
-//     fn parse_commands(&clap::ArgMatches){
 
-//     }
-// }
+impl<'a> TrackOperations<'a> {
+    fn add(&mut self, track_command: TrackOperation<'a>) {
+        self.cmds.push(track_command);
+    }
+}
 
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let group_no = sub_matches
@@ -198,6 +201,28 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
 
+    let mut track_ops = TrackOperations {
+        group_no,
+        track_no,
+        cmds: Default::default(),
+    };
+    if let Some(set_default_value) = set_default_value {
+        track_ops.add(TrackOperation::SetDefault(set_default_value))
+    };
+    if let Some(set_default_ex_value) = set_default_ex_value {
+        if set_default_value.is_none() {
+            track_ops.add(TrackOperation::SetDefaultExclusive(set_default_ex_value))
+        } else {
+            println!("Cannot use set-default-ex and set-default at the same time, exiting.");
+            return;
+        }
+    };
+    if let Some(set_forced_value) = set_forced_value {
+        track_ops.add(TrackOperation::SetForced(set_forced_value))
+    };
+    if let Some(set_enabled_value) = set_enabled_value {
+        track_ops.add(TrackOperation::SetEnabled(set_enabled_value))
+    };
 
     let track_type: TrackType = match sub_name {
         "subs" => TrackType::Subtitles,
@@ -285,7 +310,8 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     commands.iter().for_each(|cmd| cmd.run());
 }
 
-fn tui_mode(files: Vec<File>) {//, sub_name: &str, sub_matches: &clap::ArgMatches) {
+fn tui_mode(files: Vec<File>) {
+    //, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let groups_subs = groupby(&files, key_sublang_subname);
     let groups_audio = groupby(&files, key_audlang_audname);
     main_loop(&groups_subs, &groups_audio).unwrap();
