@@ -8,7 +8,7 @@ pub(crate) enum TrackOperation<'a> {
     SetEnabled(bool),
     SetDefaultExclusive(bool),
     SetTitle(Option<&'a str>),
-    SetLang(&'a str),
+    SetLang(Option<&'a str>),
 }
 
 pub(crate) struct TrackOperations<'a> {
@@ -91,7 +91,13 @@ impl<'a> TrackOperations<'a> {
                         val,
                     );
                 }
-                TrackOperation::SetLang(_) => {}
+                TrackOperation::SetLang(val) => {
+                    TrackOperations::set_lang(
+                        &mut arguments,
+                        get_track_id(track_no),
+                        val,
+                    );
+                }
             }
         }
         arguments
@@ -106,6 +112,18 @@ impl<'a> TrackOperations<'a> {
         } else {
             arguments.push("--delete".to_owned());
             arguments.push("name".to_owned());
+        }
+    }
+
+    pub fn set_lang(arguments: &mut Vec<String>, track_id: i64, name: Option<&str>) {
+        arguments.push("--edit".to_owned());
+        arguments.push(format!("track:@{}", track_id + 1));
+        if let Some(name) = name {
+            arguments.push("--set".to_owned());
+            arguments.push(format!("language=\"{}\"", name));
+        } else {
+            arguments.push("--delete".to_owned());
+            arguments.push("language".to_owned());
         }
     }
 

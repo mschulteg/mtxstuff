@@ -46,6 +46,9 @@ impl <'a>Group<'a>{
         let mut ops = TrackOperations::new(track_type);
         self.key.iter().zip(keys.iter()).enumerate().for_each(|(idx,(cur, changed))| {
             if cur == changed {return};
+            if cur.language != changed.language {
+                ops.add(idx as i64, TrackOperation::SetLang(changed.language.as_deref()))
+            }
             if cur.name != changed.name {
                 ops.add(idx as i64, TrackOperation::SetTitle(changed.name.as_deref()))
             }
@@ -66,7 +69,7 @@ impl <'a>Group<'a>{
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, std::fmt::Debug)]
 pub struct GroupKey {
-    pub language: String,
+    pub language: Option<String>,
     pub name: Option<String>,
     pub default: bool,
     pub forced: bool,
@@ -79,7 +82,7 @@ impl GroupKey {
     }
 
     pub fn row(&self) -> Vec<String> {
-        let language = self.language.clone();
+        let language = self.language.clone().unwrap_or_else(|| String::from(""));
         let name = self.name.clone().unwrap_or_else(|| String::from(""));
         let default = if self.default {
             "[x]".to_owned()

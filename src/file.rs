@@ -17,7 +17,7 @@ pub enum Flag {
 #[derive(Debug)]
 pub struct Track {
     pub name: Option<String>,
-    pub language: String,
+    pub language: Option<String>,
     pub ttype: TrackType,
     pub id: i64,
     pub default: bool,
@@ -66,7 +66,8 @@ impl Track {
             .get("track_name")
             .and_then(|t| t.as_str())
             .map(String::from);
-        let language = properties.get("language")?.as_str()?;
+        let language = properties.get("language")?.as_str()?.to_string();
+        let language = if language == "und" {None} else {Some(language)};
         let default = properties.get("default_track")?.as_bool()?;
         let forced = properties.get("forced_track")?.as_bool()?;
         let enabled = properties.get("enabled_track")?.as_bool()?;
@@ -80,7 +81,7 @@ impl Track {
         };
         Some(Track {
             name,
-            language: String::from(language),
+            language,
             ttype,
             id,
             default,

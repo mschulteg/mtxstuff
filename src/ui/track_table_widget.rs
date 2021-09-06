@@ -98,6 +98,11 @@ impl KeyPressConsumer for TrackTableWidget {
                     let sel_row = self.selected().unwrap();
                     let gkey = self.keys_copy.get_mut(sel_row).unwrap();
                     match selected_col {
+                        0 => {
+                            if gkey.language.is_some() {
+                                gkey.language = None
+                            }
+                        }
                         1 => {
                             if gkey.name.is_some() {
                                 gkey.name = None
@@ -175,7 +180,8 @@ impl TrackTableWidget {
             .add_modifier(Modifier::BOLD);
 
         let idx_col_to_string = |key_row: &GroupKey, idx_col| match idx_col {
-            0 => Some(key_row.language.clone()),
+            //0 => if key_row.language != "und" {Some(key_row.language.clone())} else {None},
+            0 => key_row.language.clone(),
             1 => key_row.name.clone(),
             2 => Some(if key_row.default {
                 "[X]".to_owned()
