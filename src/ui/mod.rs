@@ -15,8 +15,9 @@ use super::ui::popup::{CommandPopup, PopupRenderer};
 use super::ui::selectable_state::SelectableState;
 use super::ui::track_table_widget::TrackTableWidget;
 use crossterm::{
+    execute,
     event::{self, Event as CEvent, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self, Stdout};
 use std::sync::mpsc;
@@ -445,6 +446,7 @@ pub fn main_loop(
     });
 
     let stdout = io::stdout();
+    execute!(io::stdout(), EnterAlternateScreen).unwrap();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -537,8 +539,6 @@ pub fn main_loop(
                 };
                 match action {
                     Action::Quit => {
-                        disable_raw_mode()?;
-                        terminal.show_cursor()?;
                         break;
                     }
                     Action::SwitchTab(MenuItem::Home) => active_menu_item = MenuItem::Home,
@@ -550,6 +550,9 @@ pub fn main_loop(
             Event::Tick => {}
         }
     }
+    disable_raw_mode()?;
+    terminal.show_cursor()?;
+    execute!(std::io::stdout(), LeaveAlternateScreen).unwrap();
 
     Ok(())
 }

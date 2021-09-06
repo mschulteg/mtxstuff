@@ -3,7 +3,6 @@ OLD:
 - builder pattern for command (but it always has to run on the same file)
 
 NEW:
-- Quit correctly without artifacts
 - Refresh changed files (automatically or via button)
 - Make Frame<CrosstermBackend<Stdout>> generic for popup trait
 - Add option to run the commands
@@ -11,5 +10,4 @@ NEW:
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - Say when mkvtoolnix is not found
 - Support multiple track selections and edits in CLI mode
-- Make TrackOperations generic over TrackType
 - Fix undefined in CLI - see row()

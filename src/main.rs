@@ -27,8 +27,6 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
 use std::process;
 
 fn test_subprocess(paths: Vec<PathBuf>) -> Vec<String> {
-    // -> Vec<Identify> {
-    //let json_strings =
     let json_strings: Vec<String> = paths
         .iter()
         .map(|path| {
