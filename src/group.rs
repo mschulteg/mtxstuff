@@ -2,6 +2,7 @@ use itertools::Itertools;
 use super::table::Table;
 use super::file::{File, TrackType, Flag};
 use super::command::Command;
+use crate::track_operations::{TrackOperation, TrackOperations};
 
 pub fn key_sublang_subname(file: &File) -> Vec<GroupKey> {
     file.subtitle_tracks
@@ -43,23 +44,23 @@ pub struct Group<'a> {
 
 impl <'a>Group<'a>{
     pub fn apply_changes(&self, keys: &[GroupKey], track_type: TrackType) -> Vec<Command>{
-        let mut cmds: Vec<_> = self.files.iter().map(|file| Command::new(file)).collect();
+        let mut ops = TrackOperations::new(track_type);
         self.key.iter().zip(keys.iter()).enumerate().for_each(|(idx,(cur, changed))| {
-            for cmd in cmds.iter_mut() {
-                if cur.name != changed.name {
-                    cmd.track_set_name(track_type, idx as i64, changed.name.as_deref());
-                }
-                if cur.default != changed.default {
-                    cmd.track_set(track_type, Flag::Default, idx as i64, changed.default, false);
-                }
-                if cur.forced != changed.forced {
-                    cmd.track_set(track_type, Flag::Forced, idx as i64, changed.forced, false);
-                }
-                if cur.enabled != changed.enabled {
-                    cmd.track_set(track_type, Flag::Enabled, idx as i64, changed.enabled, false);
-                }
+            if cur == changed {return};
+            if cur.name != changed.name {
+                ops.add(idx as i64, TrackOperation::SetTitle(&changed.name.as_ref().unwrap()))
+            }
+            if cur.default != changed.default {
+                ops.add(idx as i64, TrackOperation::SetDefault(changed.default));
+            }
+            if cur.forced != changed.forced {
+                ops.add(idx as i64, TrackOperation::SetForced(changed.forced));
+            }
+            if cur.enabled != changed.enabled {
+                ops.add(idx as i64, TrackOperation::SetEnabled(changed.enabled));
             }
         });
+        let cmds: Vec<_> = self.files.iter().map(|file| ops.generate_command(file)).collect();
         cmds
     }
 }

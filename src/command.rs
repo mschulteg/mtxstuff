@@ -5,9 +5,12 @@ use super::file::{File, Flag, Track, TrackType};
 pub struct Command<'a> {
     pub executable: String,
     pub file: &'a File,
-    arguments: Vec<String>,
+    pub arguments: Vec<String>,
 }
 
+// Command should contain file, arguments need to be generated
+// on a per file basis because each file can have different track_ids even
+// if the sub/aud number is the same
 impl<'a> Command<'a> {
     pub fn new(file: &'a File) -> Self {
         Command {

@@ -3,11 +3,13 @@ mod file;
 mod group;
 mod table;
 mod ui;
+mod track_operations;
 
 use crate::ui::main_loop;
-use command::Command;
-use file::{File, Flag, TrackType};
-use group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
+use crate::command::Command;
+use crate::file::{File, Flag, Track, TrackType};
+use crate::group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
+use crate::track_operations::{TrackOperation, TrackOperations};
 
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -155,27 +157,6 @@ fn main() {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-enum TrackOperation<'a> {
-    SetForced(bool),
-    SetDefault(bool),
-    SetEnabled(bool),
-    SetDefaultExclusive(bool),
-    SetTitle(&'a str),
-    SetLang(&'a str),
-}
-
-struct TrackOperations<'a> {
-    group_no: Option<usize>,
-    track_no: Option<i64>,
-    cmds: Vec<TrackOperation<'a>>,
-}
-
-impl<'a> TrackOperations<'a> {
-    fn add(&mut self, track_command: TrackOperation<'a>) {
-        self.cmds.push(track_command);
-    }
-}
 
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let group_no = sub_matches
@@ -200,29 +181,6 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         .value_of("set-enabled")
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
-
-    let mut track_ops = TrackOperations {
-        group_no,
-        track_no,
-        cmds: Default::default(),
-    };
-    if let Some(set_default_value) = set_default_value {
-        track_ops.add(TrackOperation::SetDefault(set_default_value))
-    };
-    if let Some(set_default_ex_value) = set_default_ex_value {
-        if set_default_value.is_none() {
-            track_ops.add(TrackOperation::SetDefaultExclusive(set_default_ex_value))
-        } else {
-            println!("Cannot use set-default-ex and set-default at the same time, exiting.");
-            return;
-        }
-    };
-    if let Some(set_forced_value) = set_forced_value {
-        track_ops.add(TrackOperation::SetForced(set_forced_value))
-    };
-    if let Some(set_enabled_value) = set_enabled_value {
-        track_ops.add(TrackOperation::SetEnabled(set_enabled_value))
-    };
 
     let track_type: TrackType = match sub_name {
         "subs" => TrackType::Subtitles,
@@ -263,51 +221,38 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         TrackType::Video => return,
     };
 
-    let sel_group = if let Some(sel_group) = sel_group {
-        sel_group
-    } else {
-        return;
+    let sel_group = match sel_group {
+        Some(group) => group,
+        None => return,
     };
 
-    let mut commands: Vec<Command> = Vec::new();
     if let Some(track_no) = track_no {
-        for file in sel_group.files.iter() {
-            let mut command = Command::new(file);
-            if let Some(set_default_value) = set_default_value {
-                command.track_set(
-                    track_type,
-                    Flag::Default,
-                    track_no,
-                    set_default_value,
-                    false,
-                );
+        let mut track_ops = TrackOperations::new(track_type);
+        if let Some(set_default_value) = set_default_value {
+            track_ops.add(track_no, TrackOperation::SetDefault(set_default_value))
+        };
+        if let Some(set_default_ex_value) = set_default_ex_value {
+            if set_default_value.is_none() {
+                track_ops.add(track_no, TrackOperation::SetDefaultExclusive(set_default_ex_value))
+            } else {
+                println!("Cannot use set-default-ex and set-default at the same time, exiting.");
+                return;
             }
-            if let Some(set_default_ex_value) = set_default_ex_value {
-                let unset_others = set_default_ex_value;
-                command.track_set(
-                    track_type,
-                    Flag::Default,
-                    track_no,
-                    set_default_ex_value,
-                    unset_others,
-                );
-            }
-            if let Some(set_forced_value) = set_forced_value {
-                command.track_set(track_type, Flag::Forced, track_no, set_forced_value, false);
-            }
-            if let Some(set_enabled_value) = set_enabled_value {
-                command.track_set(
-                    track_type,
-                    Flag::Enabled,
-                    track_no,
-                    set_enabled_value,
-                    false,
-                );
-            }
-            commands.push(command)
-        }
+        };
+        if let Some(set_forced_value) = set_forced_value {
+            track_ops.add(track_no, TrackOperation::SetForced(set_forced_value))
+        };
+        if let Some(set_enabled_value) = set_enabled_value {
+            track_ops.add(track_no, TrackOperation::SetEnabled(set_enabled_value))
+        };
+        // Generate and run commands
+        let commands: Vec<Command> = sel_group
+            .files
+            .iter()
+            .map(|file| track_ops.generate_command(file))
+            .collect();
+        commands.iter().for_each(|cmd| cmd.run());
     }
-    commands.iter().for_each(|cmd| cmd.run());
 }
 
 fn tui_mode(files: Vec<File>) {
