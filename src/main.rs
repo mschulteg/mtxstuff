@@ -2,14 +2,14 @@ mod command;
 mod file;
 mod group;
 mod table;
-mod ui;
 mod track_operations;
+mod ui;
 
-use crate::ui::main_loop;
 use crate::command::Command;
 use crate::file::{File, TrackType};
 use crate::group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
 use crate::track_operations::{TrackOperation, TrackOperations};
+use crate::ui::main_loop;
 
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -155,7 +155,6 @@ fn main() {
     }
 }
 
-
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let group_no = sub_matches
         .value_of("group")
@@ -231,7 +230,10 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         };
         if let Some(set_default_ex_value) = set_default_ex_value {
             if set_default_value.is_none() {
-                track_ops.add(track_no, TrackOperation::SetDefaultExclusive(set_default_ex_value))
+                track_ops.add(
+                    track_no,
+                    TrackOperation::SetDefaultExclusive(set_default_ex_value),
+                )
             } else {
                 println!("Cannot use set-default-ex and set-default at the same time, exiting.");
                 return;
@@ -243,17 +245,21 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
         if let Some(set_enabled_value) = set_enabled_value {
             track_ops.add(track_no, TrackOperation::SetEnabled(set_enabled_value))
         };
-        if track_ops.empty(){
+        if track_ops.empty() {
             // Nothing to do
             return;
         }
         // Generate and run commands
-        let commands: Vec<Command> = sel_group
+        let mut commands: Vec<Command> = sel_group
             .files
             .iter()
             .map(|file| track_ops.generate_command(file))
             .collect();
-        commands.iter().for_each(|cmd| cmd.run());
+        let results: std::io::Result<()> = commands.iter_mut().map(|cmd| cmd.run()).collect();
+        match results {
+            Ok(_) => {}
+            Err(err) => println!("Error when calling command - aborting: {}", err),
+        }
     }
 }
 

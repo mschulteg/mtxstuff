@@ -29,9 +29,10 @@ impl<'a> TrackOperations<'a> {
         self.cmds.push((track_no, track_command));
     }
 
-    pub(crate) fn generate_command<'b>(&self, file: &'b File) -> Command<'b> {
-        let mut command = Command::new(file);
-        let arguments = self.generate_arguments(file);
+    pub(crate) fn generate_command(&self, file: &File) -> Command {
+        let mut command = Command::new();
+        let mut arguments = self.generate_arguments(file);
+        arguments.push(file.file_name.clone());
         command.arguments.extend(arguments);
         command
     }

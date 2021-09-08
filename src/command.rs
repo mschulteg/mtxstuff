@@ -1,20 +1,25 @@
-use std::process;
-
-use super::file::File;
+use std::process::{self, ExitStatus};
 
 #[derive(Debug)]
-pub struct Command<'a> {
-    pub executable: String,
-    pub file: &'a File,
-    pub arguments: Vec<String>,
+pub struct CommandOutput {
+    pub status: ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
 }
 
-impl<'a> Command<'a> {
-    pub fn new(file: &'a File) -> Self {
+#[derive(Debug)]
+pub struct Command {
+    pub executable: String,
+    pub arguments: Vec<String>,
+    pub output: Option<CommandOutput>,
+}
+
+impl Command {
+    pub fn new() -> Self {
         Command {
             executable: "mkvpropedit".into(),
-            file,
             arguments: Vec::new(),
+            output: None,
         }
     }
 
@@ -23,34 +28,30 @@ impl<'a> Command<'a> {
             return None;
         }
         let mut string = self.executable.clone();
-        string.push(' ');
-        string.push_str(&self.arguments.join(" "));
-        string.push(' ');
-        string.push('"');
-        string.push_str(&self.file.file_name);
-        string.push('"');
+        //string.push_str(&self.arguments.join(" "));
+        for argument in &self.arguments {
+            string.push(' ');
+            if argument.contains(char::is_whitespace) {
+                string.push('"');
+                string.push_str(argument);
+                string.push('"');
+            } else {
+                string.push_str(argument);
+            }
+        }
         Some(string)
     }
 
-    pub fn run(&self) {
-        let mut string = self.executable.clone();
-        for arg in self.arguments.iter() {
-            string.push(' ');
-            string.push_str(arg);
-        }
-        //println!("Running command {:?}", string);
+    pub fn run(&mut self) -> std::io::Result<()> {
         let mut command = process::Command::new(&self.executable);
-        let command = command
-                .args(&self.arguments)
-                .arg(&self.file.file_name);
+        let command = command.args(&self.arguments);
         println!("Running command {:?}", command);
-        let output = command
-                .output()
-                .unwrap();
-        let stdout = String::from_utf8(output.stdout).unwrap();
-        let stderr = String::from_utf8(output.stderr).unwrap();
-        println!("stdout was:{}", &stdout);
-        println!("stderr was:{}", &stderr);
-        println!("status: {}", output.status);
+        let output = command.output()?;
+        self.output = Some(CommandOutput {
+            status: output.status,
+            stdout: String::from_utf8(output.stdout).expect("commmand should return UTF8 data"),
+            stderr: String::from_utf8(output.stderr).expect("commmand should return UTF8 data"),
+        });
+        Ok(())
     }
 }
