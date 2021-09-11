@@ -1,13 +1,13 @@
 use std::process::{self, ExitStatus};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommandOutput {
     pub status: ExitStatus,
     pub stdout: String,
     pub stderr: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Command {
     pub executable: String,
     pub arguments: Vec<String>,

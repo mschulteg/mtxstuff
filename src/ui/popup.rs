@@ -1,3 +1,5 @@
+use crate::command::Command;
+
 use super::centered_rect_fit_text;
 use super::Action;
 use super::FocusState;
@@ -75,15 +77,24 @@ impl KeyPressConsumer for PopupRenderer {
 
 #[derive(Clone, Default)]
 pub(crate) struct CommandPopup {
-    pub(crate) commands: Vec<String>,
+    pub(crate) commands: Vec<Command>,
+    pub(crate) command_strings: Vec<String>,
     pub(crate) scroll: u16,
 }
 
 impl CommandPopup {
-    pub(crate) fn new<B: IntoIterator<Item = String>>(commands: B) -> Self {
-        let mut new = CommandPopup::default();
-        new.commands.extend(commands);
-        new
+    pub(crate) fn new<B: IntoIterator<Item = Command>>(commands: B) -> Self {
+        let commands: Vec<Command> = commands.into_iter().collect();
+        let command_strings: Vec<_> = commands
+            .iter()
+            .map(|cmd| cmd.to_cmd_string())
+            .flatten()
+            .collect();
+        CommandPopup {
+            commands,
+            command_strings,
+            scroll: Default::default(),
+        }
     }
 
     fn render<B: tui::backend::Backend>(
@@ -103,7 +114,17 @@ impl CommandPopup {
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
-        let paragraph = Paragraph::new(self.commands.join("\n\n"))
+        let mut text: Vec<Spans> = self
+            .command_strings
+            .iter()
+            .map(AsRef::as_ref)
+            .map(Spans::from)
+            .collect();
+        text[0]
+            .0
+            .push(Span::styled("HELLO", Style::default().fg(Color::Green)));
+        //let paragraph = Paragraph::new(self.commands.join("\n\n"))
+        let paragraph = Paragraph::new(text)
             .style(Style::default())
             .block(block)
             .alignment(Alignment::Left)
@@ -117,7 +138,7 @@ impl CommandPopup {
     fn to_file(&self) -> std::io::Result<()> {
         let mut file = File::create("mtx_commands.sh")?;
         file.write_all(b"#!/bin/sh\n")?;
-        for cmd in self.commands.iter() {
+        for cmd in self.command_strings.iter() {
             file.write_all(cmd.as_bytes())?;
             file.write_all(b"\n")?;
         }
