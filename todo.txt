@@ -11,3 +11,4 @@ NEW:
 - Say when mkvtoolnix is not found
 - Support multiple track selections and edits in CLI mode
 - Fix undefined in CLI - see row()
+- scroll instead of selectable list for command output

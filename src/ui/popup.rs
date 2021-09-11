@@ -1,9 +1,7 @@
 use super::centered_rect_fit_text;
-use super::selectable_state::SelectableState;
 use super::Action;
 use super::FocusState;
 use super::KeyPressConsumer;
-use super::SEL_COLOR;
 use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
 use std::fs::File;
@@ -12,12 +10,13 @@ use std::io::Stdout;
 use tui::layout::Alignment;
 use tui::widgets::Clear;
 use tui::widgets::Paragraph;
+use tui::widgets::Wrap;
 use tui::{
     backend::CrosstermBackend,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+    widgets::{Block, BorderType, Borders},
     Frame,
 };
 
@@ -77,14 +76,13 @@ impl KeyPressConsumer for PopupRenderer {
 #[derive(Clone, Default)]
 pub(crate) struct CommandPopup {
     pub(crate) commands: Vec<String>,
-    pub(crate) list_state: ListState,
+    pub(crate) scroll: u16,
 }
 
 impl CommandPopup {
     pub(crate) fn new<B: IntoIterator<Item = String>>(commands: B) -> Self {
         let mut new = CommandPopup::default();
         new.commands.extend(commands);
-        new.try_enter();
         new
     }
 
@@ -105,26 +103,15 @@ impl CommandPopup {
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
-        let items: Vec<_> = {
-            self.commands
-                .iter()
-                .map(|item| {
-                    ListItem::new(Spans::from(vec![Span::styled(
-                        item.clone(),
-                        Style::default(),
-                    )]))
-                })
-                .collect()
-        };
-        let list = List::new(items).block(block).highlight_style(
-            Style::default()
-                .bg(SEL_COLOR)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
+        let paragraph = Paragraph::new(self.commands.join("\n\n"))
+            .style(Style::default())
+            .block(block)
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true })
+            .scroll((self.scroll, 0));
         let area = centered_rect(80, 80, area);
         frame.render_widget(Clear, area);
-        frame.render_stateful_widget(list, area, &mut self.list_state);
+        frame.render_widget(paragraph, area);
     }
 
     fn to_file(&self) -> std::io::Result<()> {
@@ -153,10 +140,14 @@ impl KeyPressConsumer for CommandPopup {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
             KeyCode::Up | KeyCode::Char('k') => {
-                self.navigate_up();
+                if self.scroll > 0 {
+                    self.scroll -= 1
+                };
             }
-            KeyCode::Down | KeyCode::Char('j')=> {
-                self.navigate_down();
+            KeyCode::Down | KeyCode::Char('j') => {
+                if self.scroll < 1000 {
+                    self.scroll += 1
+                };
             }
             KeyCode::Esc => {
                 return Action::ClosePopup;
@@ -173,19 +164,6 @@ impl KeyPressConsumer for CommandPopup {
     }
 }
 
-impl SelectableState for CommandPopup {
-    fn select(&mut self, index: Option<usize>) {
-        self.list_state.select(index);
-    }
-
-    fn selected(&self) -> Option<usize> {
-        self.list_state.selected()
-    }
-
-    fn length(&self) -> usize {
-        self.commands.len()
-    }
-}
 #[derive(Clone, Default)]
 pub(crate) struct EditPopup {
     pub(crate) input: String,
