@@ -3,7 +3,8 @@ mod group_list_widget;
 mod popup;
 mod selectable_state;
 mod track_table_widget;
-use crate::ui::popup::{MessagePopup, PopupRender};
+use crate::command::Command;
+use crate::ui::popup::{CommandRunnerPopup, MessagePopup, PopupRender};
 
 use self::popup::EditPopup;
 
@@ -73,6 +74,7 @@ pub(crate) enum Action {
     ShowMessage(String),
     LoadGroup,
     SwitchTab(MenuItem),
+    RunCommands(Vec<Command>),
     ClosePopup,
     Quit,
     Pass,
@@ -329,6 +331,10 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 self.popup_data.popup_stack.pop();
             }
             Action::LoadGroup => self.load_selected_group(),
+            Action::RunCommands(commands) => {
+                let new_popup = CommandRunnerPopup::new(commands);
+                self.popup_data.popup_stack.push(Box::new(new_popup));
+            },
             switch_tab @ Action::SwitchTab(_) => return switch_tab,
             Action::Quit => return Action::Quit,
             Action::Pass => {}

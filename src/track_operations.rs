@@ -30,7 +30,7 @@ impl<'a> TrackOperations<'a> {
     }
 
     pub(crate) fn generate_command(&self, file: &File) -> Command {
-        let mut command = Command::new();
+        let mut command = Command::new("mkvpropedit");
         let mut arguments = self.generate_arguments(file);
         arguments.push(file.file_name.clone());
         command.arguments.extend(arguments);

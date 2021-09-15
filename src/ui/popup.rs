@@ -1,4 +1,6 @@
 use crate::command::Command;
+use crate::command::CommandHandler;
+use crate::command::CommandHandlerStatus;
 
 use super::centered_rect_fit_text;
 use super::Action;
@@ -6,6 +8,7 @@ use super::FocusState;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
+use tui::widgets::Gauge;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Stdout;
@@ -75,7 +78,6 @@ impl KeyPressConsumer for PopupRenderer {
     }
 }
 
-#[derive(Clone, Default)]
 pub(crate) struct CommandPopup {
     pub(crate) commands: Vec<Command>,
     pub(crate) command_strings: Vec<String>,
@@ -169,6 +171,9 @@ impl KeyPressConsumer for CommandPopup {
                 if self.scroll < 1000 {
                     self.scroll += 1
                 };
+            }
+            KeyCode::F(2) => {
+                return Action::RunCommands(self.commands.clone());
             }
             KeyCode::Esc => {
                 return Action::ClosePopup;
@@ -304,6 +309,139 @@ impl KeyPressConsumer for MessagePopup {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
             KeyCode::Esc | KeyCode::Enter => {
+                return Action::ClosePopup;
+            }
+            _ => {}
+        }
+        Action::Pass
+    }
+}
+
+pub(crate) struct CommandRunnerPopup {
+    pub(crate) command_handler: Option<CommandHandler>,
+    pub(crate) scroll: u16,
+    pub(crate) results: Vec<std::io::Result<Command>>,
+    pub(crate) log: Vec<String>,
+    pub(crate) error: bool,
+}
+
+impl CommandRunnerPopup {
+    pub(crate) fn new(commands: Vec<Command>) -> Self {
+        CommandRunnerPopup {
+            command_handler: Some(CommandHandler::new(commands)),
+            scroll: Default::default(),
+            results: Default::default(),
+            log: Default::default(),
+            error: false
+        }
+    }
+
+    fn render<B: tui::backend::Backend>(
+        &mut self,
+        frame: &mut Frame<B>,
+        area: Rect,
+        focus: FocusState
+    ) {
+        if let Some(mut command_handler) = self.command_handler.take() {
+            match command_handler.check() {
+                CommandHandlerStatus::Percent(percent) => {
+                    let gauge_box = Gauge::default()
+                        .block(Block::default().title("Progress").borders(Borders::ALL))
+                        .gauge_style(Style::default().fg(focus.sel_color()))
+                        .percent(percent);
+                    let area = centered_rect(70, 10, area);
+                    frame.render_widget(Clear, area);
+                    frame.render_widget(gauge_box, area);
+                    self.command_handler = Some(command_handler);
+                },
+                CommandHandlerStatus::Done => {
+                    self.results = command_handler.into_results();
+                    for res in self.results.iter() {
+                        match res {
+                            Ok(command) => {
+                                if !command.output.as_ref().expect("has executed").status.success(){
+                                    self.error = true
+                                }
+                                self.log.push(command.to_log_string())
+                            },
+                            Err(err) => {
+                                self.log.push(format!("Failed to execute process: {:}", err));
+                                self.error = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            };
+        } else {
+            if self.error {
+                let mut text: Vec<Spans> = self
+                    .log
+                    .iter()
+                    .map(AsRef::as_ref)
+                    .map(Spans::from)
+                    .collect();
+                text[0]
+                    .0
+                    .push(Span::styled("HELLO", Style::default().fg(Color::Green)));
+                //let paragraph = Paragraph::new(self.commands.join("\n\n"))
+                let paragraph = Paragraph::new(text)
+                    .style(Style::default())
+                    .block(Block::default().title("Progress").borders(Borders::ALL))
+                    .alignment(Alignment::Left)
+                    .wrap(Wrap { trim: true })
+                    .scroll((self.scroll, 0));
+                let area = centered_rect(80, 80, area);
+                frame.render_widget(Clear, area);
+                frame.render_widget(paragraph, area);
+            } else {
+                let message = "Done.";
+                // DUPLICATE CODE OF MESSAGE BOX
+                // DUPLICATE CODE OF MESSAGE BOX
+                let margin_y = 2;
+                let area = centered_rect_fit_text(message.as_ref(), 2, margin_y, area);
+                let mut spans = Vec::<Spans>::new();
+                for _ in 0..margin_y {
+                    // add empty lines to vertically center text
+                    spans.push(Spans::from(vec![Span::raw("")]));
+                }
+                spans.push(Spans::from(vec![Span::raw(message)]));
+                //let input = Paragraph::new(self.message.as_ref())
+                let border_style = Style::default().fg(focus.border_color());
+                let input = Paragraph::new(spans)
+                    .style(Style::default().fg(Color::White))
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .border_style(border_style),
+                    )
+                    .alignment(Alignment::Center);
+                frame.render_widget(Clear, area);
+                frame.render_widget(input, area);
+            }
+        }
+    }
+}
+
+impl PopupRender for CommandRunnerPopup {
+    fn render_widget(
+        &mut self,
+        frame: &mut Frame<CrosstermBackend<Stdout>>,
+        area: Rect,
+        focus: FocusState,
+    ) {
+        self.render(frame, area, focus);
+    }
+}
+
+impl KeyPressConsumer for CommandRunnerPopup {
+    fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
+        match key_code {
+            KeyCode::Esc => {
+                return Action::ClosePopup;
+            }
+            KeyCode::Enter => {
                 return Action::ClosePopup;
             }
             _ => {}
