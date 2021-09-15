@@ -48,6 +48,20 @@ impl Command {
         message
     }
 
+    pub fn success_string(&self) -> String {
+        let mut message = String::new();
+        if let Some(ref output) = self.output {
+            if output.status.success() {
+                message.push_str("Success");
+            } else {
+                message.push_str(&format!("Error: {:}", output.status));
+            }
+        } else {
+            message.push_str("Has not run.");
+        }
+        message
+    }
+
     pub fn to_cmd_string(&self) -> Option<String> {
         // Do not check this here because command is supposed to be universal
         if self.arguments.len() == 0 {

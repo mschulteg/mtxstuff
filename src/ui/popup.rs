@@ -8,12 +8,13 @@ use super::FocusState;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
-use tui::widgets::Gauge;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Stdout;
 use tui::layout::Alignment;
+use tui::text::Text;
 use tui::widgets::Clear;
+use tui::widgets::Gauge;
 use tui::widgets::Paragraph;
 use tui::widgets::Wrap;
 use tui::{
@@ -317,22 +318,22 @@ impl KeyPressConsumer for MessagePopup {
     }
 }
 
-pub(crate) struct CommandRunnerPopup {
+pub(crate) struct CommandRunnerPopup<'a> {
     pub(crate) command_handler: Option<CommandHandler>,
     pub(crate) scroll: u16,
     pub(crate) results: Vec<std::io::Result<Command>>,
-    pub(crate) log: Vec<String>,
+    pub(crate) log: Text<'a>,
     pub(crate) error: bool,
 }
 
-impl CommandRunnerPopup {
+impl<'a> CommandRunnerPopup<'a> {
     pub(crate) fn new(commands: Vec<Command>) -> Self {
         CommandRunnerPopup {
             command_handler: Some(CommandHandler::new(commands)),
             scroll: Default::default(),
             results: Default::default(),
             log: Default::default(),
-            error: false
+            error: false,
         }
     }
 
@@ -340,7 +341,7 @@ impl CommandRunnerPopup {
         &mut self,
         frame: &mut Frame<B>,
         area: Rect,
-        focus: FocusState
+        focus: FocusState,
     ) {
         if let Some(mut command_handler) = self.command_handler.take() {
             match command_handler.check() {
@@ -353,19 +354,51 @@ impl CommandRunnerPopup {
                     frame.render_widget(Clear, area);
                     frame.render_widget(gauge_box, area);
                     self.command_handler = Some(command_handler);
-                },
+                }
                 CommandHandlerStatus::Done => {
                     self.results = command_handler.into_results();
                     for res in self.results.iter() {
                         match res {
                             Ok(command) => {
-                                if !command.output.as_ref().expect("has executed").status.success(){
-                                    self.error = true
+                                self.log.extend(Text::styled(
+                                    format!("Command: {:}\n", command.to_cmd_string().unwrap()),
+                                    Style::default().add_modifier(Modifier::BOLD),
+                                ));
+                                let output = command.output.as_ref().expect("command has executed");
+                                if !output.status.success() {
+                                    self.error = true;
+                                    // TODO - get rid of the clones
+                                    self.log.extend(Text::styled(
+                                        command.success_string(),
+                                        Style::default().fg(Color::Red),
+                                    ));
+                                    if !output.stdout.is_empty() {
+                                        self.log.extend(Text::raw("Command output (stdout) is:"));
+                                        self.log.extend(Text::styled(
+                                            output.stdout.clone(),
+                                            Style::default().fg(Color::DarkGray),
+                                        ));
+                                    }
+                                    if !output.stderr.is_empty() {
+                                        self.log.extend(Text::raw("Command output (stderr) is:"));
+                                        self.log.extend(Text::styled(
+                                            output.stderr.clone(),
+                                            Style::default().fg(Color::DarkGray),
+                                        ));
+                                    }
+                                } else {
+                                    self.log.extend(Text::styled(
+                                        command.success_string(),
+                                        Style::default().fg(Color::Green),
+                                    ));
                                 }
-                                self.log.push(command.to_log_string())
-                            },
+                                self.log.extend(Text::raw("\n"));
+                            }
                             Err(err) => {
-                                self.log.push(format!("Failed to execute process: {:}", err));
+                                self.log.extend(Text::styled(
+                                    format!("Failed to execute process: {:}", err),
+                                    Style::default().fg(Color::Red),
+                                ));
                                 self.error = true;
                                 break;
                             }
@@ -375,17 +408,7 @@ impl CommandRunnerPopup {
             };
         } else {
             if self.error {
-                let mut text: Vec<Spans> = self
-                    .log
-                    .iter()
-                    .map(AsRef::as_ref)
-                    .map(Spans::from)
-                    .collect();
-                text[0]
-                    .0
-                    .push(Span::styled("HELLO", Style::default().fg(Color::Green)));
-                //let paragraph = Paragraph::new(self.commands.join("\n\n"))
-                let paragraph = Paragraph::new(text)
+                let paragraph = Paragraph::new(self.log.clone())
                     .style(Style::default())
                     .block(Block::default().title("Progress").borders(Borders::ALL))
                     .alignment(Alignment::Left)
@@ -396,8 +419,7 @@ impl CommandRunnerPopup {
                 frame.render_widget(paragraph, area);
             } else {
                 let message = "Done.";
-                // DUPLICATE CODE OF MESSAGE BOX
-                // DUPLICATE CODE OF MESSAGE BOX
+                // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
                 let margin_y = 2;
                 let area = centered_rect_fit_text(message.as_ref(), 2, margin_y, area);
                 let mut spans = Vec::<Spans>::new();
@@ -424,7 +446,7 @@ impl CommandRunnerPopup {
     }
 }
 
-impl PopupRender for CommandRunnerPopup {
+impl<'a> PopupRender for CommandRunnerPopup<'a> {
     fn render_widget(
         &mut self,
         frame: &mut Frame<CrosstermBackend<Stdout>>,
@@ -435,7 +457,7 @@ impl PopupRender for CommandRunnerPopup {
     }
 }
 
-impl KeyPressConsumer for CommandRunnerPopup {
+impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
             KeyCode::Esc => {
