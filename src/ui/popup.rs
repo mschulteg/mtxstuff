@@ -356,6 +356,7 @@ impl<'a> CommandRunnerPopup<'a> {
                     self.command_handler = Some(command_handler);
                 }
                 CommandHandlerStatus::Done => {
+                    self.scroll = 0;
                     self.results = command_handler.into_results();
                     for res in self.results.iter() {
                         match res {
@@ -407,10 +408,17 @@ impl<'a> CommandRunnerPopup<'a> {
                 }
             };
         } else {
+            let border_style = Style::default().fg(focus.border_color());
             if self.error {
                 let paragraph = Paragraph::new(self.log.clone())
                     .style(Style::default())
-                    .block(Block::default().title("Progress").borders(Borders::ALL))
+                    .block(
+                        Block::default()
+                            .title("Progress")
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .border_style(border_style),
+                    )
                     .alignment(Alignment::Left)
                     .wrap(Wrap { trim: true })
                     .scroll((self.scroll, 0));
@@ -420,7 +428,7 @@ impl<'a> CommandRunnerPopup<'a> {
             } else {
                 let message = "Done.";
                 // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
-                let margin_y = 2;
+                let margin_y = 0;
                 let area = centered_rect_fit_text(message.as_ref(), 2, margin_y, area);
                 let mut spans = Vec::<Spans>::new();
                 for _ in 0..margin_y {
@@ -429,7 +437,6 @@ impl<'a> CommandRunnerPopup<'a> {
                 }
                 spans.push(Spans::from(vec![Span::raw(message)]));
                 //let input = Paragraph::new(self.message.as_ref())
-                let border_style = Style::default().fg(focus.border_color());
                 let input = Paragraph::new(spans)
                     .style(Style::default().fg(Color::White))
                     .block(
@@ -460,11 +467,29 @@ impl<'a> PopupRender for CommandRunnerPopup<'a> {
 impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                if self.scroll > 0 {
+                    self.scroll -= 1
+                };
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if self.scroll < 1000 {
+                    self.scroll += 1
+                };
+            }
             KeyCode::Esc => {
-                return Action::ClosePopup;
+                return if self.command_handler.is_none() {
+                    Action::ReloadFiles
+                } else {
+                    Action::ClosePopup
+                }
             }
             KeyCode::Enter => {
-                return Action::ClosePopup;
+                return if self.command_handler.is_none() {
+                    Action::ReloadFiles
+                } else {
+                    Action::ClosePopup
+                }
             }
             _ => {}
         }

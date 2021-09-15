@@ -76,6 +76,7 @@ pub(crate) enum Action {
     SwitchTab(MenuItem),
     RunCommands(Vec<Command>),
     ClosePopup,
+    ReloadFiles,
     Quit,
     Pass,
 }
@@ -289,6 +290,10 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 _ => {}
             },
             Action::ClosePopup => {
+                self.popup_data.popup_stack.pop();
+            }
+            Action::ReloadFiles => {
+                self.popup_data.popup_stack.pop();
                 self.popup_data.popup_stack.pop();
             }
             Action::NavigateBackward(src_widget) => match src_widget {
