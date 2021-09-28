@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+use std::process;
+
 use serde_json::Value;
 
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +39,20 @@ pub struct File {
 }
 
 impl File {
+    pub fn from_file(path: &Path) -> Option<Self> {
+        let json_bytes = process::Command::new("mkvmerge")
+            .arg("--identification-format")
+            .arg("json")
+            .arg("--identify")
+            .arg(path)
+            .output()
+            .unwrap()
+            .stdout;
+        let json_str = std::str::from_utf8(&json_bytes[..]).unwrap();
+        let json_val = serde_json::from_str(json_str).unwrap();
+        Self::from_json(json_val)
+    }
+
     pub fn from_json(json: Value) -> Option<Self> {
         let mut video_tracks = Vec::<Track>::new();
         let mut audio_tracks = Vec::<Track>::new();
@@ -67,7 +84,11 @@ impl Track {
             .and_then(|t| t.as_str())
             .map(String::from);
         let language = properties.get("language")?.as_str()?.to_string();
-        let language = if language == "und" {None} else {Some(language)};
+        let language = if language == "und" {
+            None
+        } else {
+            Some(language)
+        };
         let default = properties.get("default_track")?.as_bool()?;
         let forced = properties.get("forced_track")?.as_bool()?;
         let enabled = properties.get("enabled_track")?.as_bool()?;

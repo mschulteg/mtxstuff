@@ -4,6 +4,8 @@ mod popup;
 mod selectable_state;
 mod track_table_widget;
 use crate::command::Command;
+use crate::file::File;
+use crate::group::{groupby, key_audlang_audname, key_sublang_subname};
 use crate::ui::popup::{CommandRunnerPopup, MessagePopup, PopupRender};
 
 use self::popup::EditPopup;
@@ -424,10 +426,7 @@ impl<'a> GroupTabData<'a> {
     }
 }
 
-pub fn main_loop(
-    groups_subs: &[Group],
-    groups_audio: &[Group],
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn main_loop(files: Vec<File>) -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode().expect("can run in raw mode");
 
     let (tx, rx) = mpsc::channel();
@@ -457,11 +456,14 @@ pub fn main_loop(
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    let groups_subs = groupby(&files, key_sublang_subname);
+    let groups_audio = groupby(&files, key_audlang_audname);
+
     let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
     let mut active_menu_item = MenuItem::Home;
 
-    let mut audio_tab_data = GroupTabData::new(groups_audio, TrackType::Audio);
-    let mut sub_tab_data = GroupTabData::new(groups_subs, TrackType::Subtitles);
+    let mut audio_tab_data = GroupTabData::new(&groups_audio, TrackType::Audio);
+    let mut sub_tab_data = GroupTabData::new(&groups_subs, TrackType::Subtitles);
     // Refresh keys which means that keys are copied to the editable area.
     audio_tab_data.load_selected_group();
     sub_tab_data.load_selected_group();

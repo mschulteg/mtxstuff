@@ -24,36 +24,6 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
     files
 }
 
-use std::process;
-
-fn test_subprocess(paths: Vec<PathBuf>) -> Vec<String> {
-    let json_strings: Vec<String> = paths
-        .iter()
-        .map(|path| {
-            process::Command::new("mkvmerge")
-                .arg("--identification-format")
-                .arg("json")
-                .arg("--identify")
-                .arg(path)
-                .output()
-                .unwrap()
-                .stdout
-        })
-        .map(|slice| std::str::from_utf8(&slice).unwrap().to_owned())
-        .collect();
-    //let stdout = capture_data.stdout_str();
-    json_strings
-}
-
-fn test_identify(json_strings: Vec<String>) -> Vec<File> {
-    json_strings
-        .iter()
-        .map(|json_str| serde_json::from_str(json_str).unwrap())
-        .map(|json_val| File::from_json(json_val).unwrap())
-        //.filter_map(File::from_json)
-        .collect()
-}
-
 use clap::{App, AppSettings, Arg};
 
 use log::info;
@@ -143,8 +113,12 @@ fn main() {
     let path = sub_matches.value_of("directory");
     let path = PathBuf::from(path.unwrap());
     let paths = get_files_recursively(&path);
-    let json_strings = test_subprocess(paths);
-    let files = test_identify(json_strings);
+    let files: Option<Vec<File>> = paths
+        .iter()
+        .map(AsRef::as_ref)
+        .map(File::from_file)
+        .collect();
+    let files = files.unwrap();
 
     match sub_name {
         "subs" => cli_mode(files, sub_name, sub_matches),
@@ -264,8 +238,5 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
 }
 
 fn tui_mode(files: Vec<File>) {
-    //, sub_name: &str, sub_matches: &clap::ArgMatches) {
-    let groups_subs = groupby(&files, key_sublang_subname);
-    let groups_audio = groupby(&files, key_audlang_audname);
-    main_loop(&groups_subs, &groups_audio).unwrap();
+    main_loop(files).unwrap();
 }
