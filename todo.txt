@@ -12,3 +12,5 @@ NEW:
 - Support multiple track selections and edits in CLI mode
 - Fix undefined in CLI - see row()
 - scroll instead of selectable list for command output
+- Change CommandHandler to Handler that handles any closure instad of Commands only
+- Make CommandHandler parallel
