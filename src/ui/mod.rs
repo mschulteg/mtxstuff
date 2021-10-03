@@ -487,12 +487,11 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
+    let mut active_menu_item = MenuItem::Home;
     'outer: loop {
         let groups_subs = groupby(&files, key_sublang_subname);
         let groups_audio = groupby(&files, key_audlang_audname);
-
-        let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
-        let mut active_menu_item = MenuItem::Home;
 
         let mut audio_tab_data = GroupTabData::new(&groups_audio, TrackType::Audio);
         let mut sub_tab_data = GroupTabData::new(&groups_subs, TrackType::Subtitles);

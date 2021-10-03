@@ -1,6 +1,6 @@
 [package]
 name = "mtxstuff_rust"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Moritz Schulte <mschulte.g@gmail.com>"]
 edition = "2018"
 
