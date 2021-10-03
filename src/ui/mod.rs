@@ -342,10 +342,11 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             }
             Action::LoadGroup => self.load_selected_group(),
             Action::RunCommands((command_type, commands)) => {
-                let new_popup = CommandRunnerPopup::new(commands, command_type);
+                let new_popup = CommandRunnerPopup::new(commands, command_type, "Applying changes".to_string());
                 self.popup_data.popup_stack.push(Box::new(new_popup));
             }
             Action::CommandsDone((CommandType::AlterFiles, _)) => {
+                self.popup_data.popup_stack.pop();
                 let mut commands: Vec<Command> = Vec::new();
                 let files = self.selected_group().unwrap().files.as_slice();
                 for file in files {
@@ -358,7 +359,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                     command.arguments.push(file.file_name.clone());
                     commands.push(command);
                 }
-                let new_popup = CommandRunnerPopup::new(commands, CommandType::ReloadFiles);
+                let new_popup = CommandRunnerPopup::new(commands, CommandType::ReloadFiles, "Reloading files".to_string());
                 self.popup_data.popup_stack.push(Box::new(new_popup));
             }
             Action::CommandsDone((CommandType::ReloadFiles, commands)) => {

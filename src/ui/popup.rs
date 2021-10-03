@@ -118,15 +118,15 @@ impl CommandPopup {
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
-        let mut text: Vec<Spans> = self
+        let text: Vec<Spans> = self
             .command_strings
             .iter()
             .map(AsRef::as_ref)
             .map(Spans::from)
             .collect();
-        text[0]
-            .0
-            .push(Span::styled("HELLO", Style::default().fg(Color::Green)));
+        // text[0]
+        //     .0
+        //     .push(Span::styled("HELLO", Style::default().fg(Color::Green)));
         //let paragraph = Paragraph::new(self.commands.join("\n\n"))
         let paragraph = Paragraph::new(text)
             .style(Style::default())
@@ -322,6 +322,7 @@ impl KeyPressConsumer for MessagePopup {
 pub(crate) struct CommandRunnerPopup<'a> {
     pub(crate) command_handler: Option<CommandHandler>,
     pub(crate) command_type: CommandType,
+    pub(crate) title: String,
     pub(crate) scroll: u16,
     pub(crate) results: Option<Vec<Command>>,
     pub(crate) log: Text<'a>,
@@ -329,10 +330,11 @@ pub(crate) struct CommandRunnerPopup<'a> {
 }
 
 impl<'a> CommandRunnerPopup<'a> {
-    pub(crate) fn new(commands: Vec<Command>, command_type: CommandType) -> Self {
+    pub(crate) fn new(commands: Vec<Command>, command_type: CommandType, title: String) -> Self {
         CommandRunnerPopup {
             command_handler: Some(CommandHandler::new(commands)),
             command_type,
+            title,
             scroll: Default::default(),
             results: Default::default(),
             log: Default::default(),
@@ -346,11 +348,16 @@ impl<'a> CommandRunnerPopup<'a> {
         area: Rect,
         focus: FocusState,
     ) {
+        let border_style = Style::default().fg(focus.border_color());
         if let Some(mut command_handler) = self.command_handler.take() {
             match command_handler.check() {
                 CommandHandlerStatus::Percent(percent) => {
                     let gauge_box = Gauge::default()
-                        .block(Block::default().title("Progress").borders(Borders::ALL))
+                        .block(Block::default()
+                            .title(self.title.clone())
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .border_style(border_style))
                         .gauge_style(Style::default().fg(focus.sel_color()))
                         .percent(percent);
                     let area = centered_rect(70, 10, area);
@@ -415,13 +422,12 @@ impl<'a> CommandRunnerPopup<'a> {
                 }
             };
         } else {
-            let border_style = Style::default().fg(focus.border_color());
             if self.error {
                 let paragraph = Paragraph::new(self.log.clone())
                     .style(Style::default())
                     .block(
                         Block::default()
-                            .title("Progress")
+                            .title("Log")
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
                             .border_style(border_style),
