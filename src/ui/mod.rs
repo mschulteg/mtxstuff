@@ -18,8 +18,8 @@ use super::ui::popup::{CommandPopup, PopupRenderer};
 use super::ui::selectable_state::SelectableState;
 use super::ui::track_table_widget::TrackTableWidget;
 use crossterm::{
-    execute,
     event::{self, Event as CEvent, KeyCode},
+    execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self, Stdout};
@@ -67,6 +67,12 @@ pub(crate) enum ActiveWidget {
     Files,
 }
 
+#[derive(PartialEq, Copy, Clone)]
+pub(crate) enum CommandType {
+    AlterFiles,
+    ReloadFiles,
+}
+
 #[derive(PartialEq)]
 pub(crate) enum Action {
     NavigateForward(ActiveWidget),
@@ -76,9 +82,10 @@ pub(crate) enum Action {
     ShowMessage(String),
     LoadGroup,
     SwitchTab(MenuItem),
-    RunCommands(Vec<Command>),
+    RunCommands((CommandType, Vec<Command>)), // this is incredibly stupid
+    CommandsDone((CommandType, Vec<Command>)),
     ClosePopup,
-    ReloadFiles,
+    ReloadFiles(Vec<File>),
     Quit,
     Pass,
 }
@@ -197,11 +204,7 @@ fn centered_rect_fit_text(text: &str, margin_x: u16, margin_y: u16, r: Rect) -> 
         0
     };
     let width = text.split('\n').map(|str| str.width()).max().unwrap() as u16 + 2 + margin_x * 2;
-    let width_rest = if r.width >= width {
-        r.width - width
-    } else {
-        0
-    };
+    let width_rest = if r.width >= width { r.width - width } else { 0 };
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -226,7 +229,6 @@ fn centered_rect_fit_text(text: &str, margin_x: u16, margin_y: u16, r: Rect) -> 
         )
         .split(popup_layout[1])[1]
 }
-
 
 pub(crate) trait KeyPressConsumer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
@@ -294,9 +296,10 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
             Action::ClosePopup => {
                 self.popup_data.popup_stack.pop();
             }
-            Action::ReloadFiles => {
+            Action::ReloadFiles(changed_files) => {
                 self.popup_data.popup_stack.pop();
                 self.popup_data.popup_stack.pop();
+                return Action::ReloadFiles(changed_files);
             }
             Action::NavigateBackward(src_widget) => match src_widget {
                 ActiveWidget::Files => {
@@ -338,10 +341,37 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 self.popup_data.popup_stack.pop();
             }
             Action::LoadGroup => self.load_selected_group(),
-            Action::RunCommands(commands) => {
-                let new_popup = CommandRunnerPopup::new(commands);
+            Action::RunCommands((command_type, commands)) => {
+                let new_popup = CommandRunnerPopup::new(commands, command_type);
                 self.popup_data.popup_stack.push(Box::new(new_popup));
-            },
+            }
+            Action::CommandsDone((CommandType::AlterFiles, _)) => {
+                let mut commands: Vec<Command> = Vec::new();
+                let files = self.selected_group().unwrap().files.as_slice();
+                for file in files {
+                    let mut command = Command::new("mkvmerge");
+                    command
+                        .arguments
+                        .push("--identification-format".to_string());
+                    command.arguments.push("json".to_string());
+                    command.arguments.push("--identify".to_string());
+                    command.arguments.push(file.file_name.clone());
+                    commands.push(command);
+                }
+                let new_popup = CommandRunnerPopup::new(commands, CommandType::ReloadFiles);
+                self.popup_data.popup_stack.push(Box::new(new_popup));
+            }
+            Action::CommandsDone((CommandType::ReloadFiles, commands)) => {
+                self.popup_data.popup_stack.pop();
+                self.popup_data.popup_stack.pop();
+                let changed_files: Vec<File> = commands
+                    .iter()
+                    .map(|c| c.output.as_ref().unwrap())
+                    .filter(|c| c.status.success())
+                    .map(|output| File::from_json_str(&output.stdout).unwrap())
+                    .collect();
+                return Action::ReloadFiles(changed_files);
+            }
             switch_tab @ Action::SwitchTab(_) => return switch_tab,
             Action::Quit => return Action::Quit,
             Action::Pass => {}
@@ -426,7 +456,7 @@ impl<'a> GroupTabData<'a> {
     }
 }
 
-pub fn main_loop(files: Vec<File>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode().expect("can run in raw mode");
 
     let (tx, rx) = mpsc::channel();
@@ -456,35 +486,38 @@ pub fn main_loop(files: Vec<File>) -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let groups_subs = groupby(&files, key_sublang_subname);
-    let groups_audio = groupby(&files, key_audlang_audname);
+    'outer: loop {
+        let groups_subs = groupby(&files, key_sublang_subname);
+        let groups_audio = groupby(&files, key_audlang_audname);
 
-    let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
-    let mut active_menu_item = MenuItem::Home;
+        let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
+        let mut active_menu_item = MenuItem::Home;
 
-    let mut audio_tab_data = GroupTabData::new(&groups_audio, TrackType::Audio);
-    let mut sub_tab_data = GroupTabData::new(&groups_subs, TrackType::Subtitles);
-    // Refresh keys which means that keys are copied to the editable area.
-    audio_tab_data.load_selected_group();
-    sub_tab_data.load_selected_group();
+        let mut audio_tab_data = GroupTabData::new(&groups_audio, TrackType::Audio);
+        let mut sub_tab_data = GroupTabData::new(&groups_subs, TrackType::Subtitles);
+        // Refresh keys which means that keys are copied to the editable area.
+        audio_tab_data.load_selected_group();
+        sub_tab_data.load_selected_group();
 
-    loop {
-        terminal.draw(|rect| {
-            let size = rect.size();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(2)
-                .constraints(
-                    [
-                        Constraint::Length(3),
-                        Constraint::Min(2),
-                        Constraint::Length(3),
-                    ]
-                    .as_ref(),
+        let mut changed_files = 'inner: loop {
+            terminal.draw(|rect| {
+                let size = rect.size();
+                let chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .margin(2)
+                    .constraints(
+                        [
+                            Constraint::Length(3),
+                            Constraint::Min(2),
+                            Constraint::Length(3),
+                        ]
+                        .as_ref(),
+                    )
+                    .split(size);
+
+                let progressbar = Paragraph::new(
+                    "Press F2 to generate and show the commands that will apply the changes.",
                 )
-                .split(size);
-
-            let progressbar = Paragraph::new("Press F2 to generate and show the commands that will apply the changes.")
                 .style(Style::default().fg(Color::LightCyan))
                 .alignment(Alignment::Center)
                 .block(
@@ -495,67 +528,77 @@ pub fn main_loop(files: Vec<File>) -> Result<(), Box<dyn std::error::Error>> {
                         .border_type(BorderType::Plain),
                 );
 
-            let menu = menu_titles
-                .iter()
-                .map(|t| {
-                    let (first, rest) = t.split_at(1);
-                    Spans::from(vec![
-                        Span::styled(
-                            first,
-                            Style::default()
-                                .fg(SEL_COLOR)
-                                .add_modifier(Modifier::UNDERLINED),
-                        ),
-                        Span::styled(rest, Style::default().fg(Color::White)),
-                    ])
-                })
-                .collect();
+                let menu = menu_titles
+                    .iter()
+                    .map(|t| {
+                        let (first, rest) = t.split_at(1);
+                        Spans::from(vec![
+                            Span::styled(
+                                first,
+                                Style::default()
+                                    .fg(SEL_COLOR)
+                                    .add_modifier(Modifier::UNDERLINED),
+                            ),
+                            Span::styled(rest, Style::default().fg(Color::White)),
+                        ])
+                    })
+                    .collect();
 
-            let tabs = Tabs::new(menu)
-                .select(active_menu_item.into())
-                .block(Block::default().title("Menu").borders(Borders::ALL))
-                .style(Style::default().fg(Color::White))
-                .highlight_style(Style::default().fg(SEL_COLOR))
-                .divider(Span::raw("|"));
+                let tabs = Tabs::new(menu)
+                    .select(active_menu_item.into())
+                    .block(Block::default().title("Menu").borders(Borders::ALL))
+                    .style(Style::default().fg(Color::White))
+                    .highlight_style(Style::default().fg(SEL_COLOR))
+                    .divider(Span::raw("|"));
 
-            rect.render_widget(tabs, chunks[0]);
+                rect.render_widget(tabs, chunks[0]);
 
-            match active_menu_item {
-                MenuItem::Home => rect.render_widget(render_home(), chunks[1]),
-                MenuItem::Subs => {
-                    sub_tab_data.render(rect, chunks[1]);
-                }
-                MenuItem::Audio => {
-                    audio_tab_data.render(rect, chunks[1]);
-                }
-            }
-            rect.render_widget(progressbar, chunks[2]);
-        })?;
-
-        match rx.recv()? {
-            Event::Input(event) => {
-                let action = match active_menu_item {
-                    MenuItem::Subs => sub_tab_data.process_key(event.code),
-                    MenuItem::Audio => audio_tab_data.process_key(event.code),
-                    _ => match event.code {
-                        KeyCode::Char('i') => Action::SwitchTab(MenuItem::Home),
-                        KeyCode::Char('s') => Action::SwitchTab(MenuItem::Subs),
-                        KeyCode::Char('a') => Action::SwitchTab(MenuItem::Audio),
-                        KeyCode::Char('q') => Action::Quit,
-                        _ => Action::Pass,
-                    },
-                };
-                match action {
-                    Action::Quit => {
-                        break;
+                match active_menu_item {
+                    MenuItem::Home => rect.render_widget(render_home(), chunks[1]),
+                    MenuItem::Subs => {
+                        sub_tab_data.render(rect, chunks[1]);
                     }
-                    Action::SwitchTab(MenuItem::Home) => active_menu_item = MenuItem::Home,
-                    Action::SwitchTab(MenuItem::Subs) => active_menu_item = MenuItem::Subs,
-                    Action::SwitchTab(MenuItem::Audio) => active_menu_item = MenuItem::Audio,
-                    _ => {}
+                    MenuItem::Audio => {
+                        audio_tab_data.render(rect, chunks[1]);
+                    }
                 }
+                rect.render_widget(progressbar, chunks[2]);
+            })?;
+
+            match rx.recv()? {
+                Event::Input(event) => {
+                    let action = match active_menu_item {
+                        MenuItem::Subs => sub_tab_data.process_key(event.code),
+                        MenuItem::Audio => audio_tab_data.process_key(event.code),
+                        _ => match event.code {
+                            KeyCode::Char('i') => Action::SwitchTab(MenuItem::Home),
+                            KeyCode::Char('s') => Action::SwitchTab(MenuItem::Subs),
+                            KeyCode::Char('a') => Action::SwitchTab(MenuItem::Audio),
+                            KeyCode::Char('q') => Action::Quit,
+                            _ => Action::Pass,
+                        },
+                    };
+                    match action {
+                        Action::Quit => {
+                            break 'outer;
+                        }
+                        Action::ReloadFiles(changed_files) => {
+                            break 'inner changed_files;
+                        }
+                        Action::SwitchTab(MenuItem::Home) => active_menu_item = MenuItem::Home,
+                        Action::SwitchTab(MenuItem::Subs) => active_menu_item = MenuItem::Subs,
+                        Action::SwitchTab(MenuItem::Audio) => active_menu_item = MenuItem::Audio,
+                        _ => {}
+                    }
+                }
+                Event::Tick => {}
             }
-            Event::Tick => {}
+        };
+        for file in files.iter_mut() {
+            if let Some(pos) = changed_files.iter().position(|ch_f| ch_f == file ){
+                let changed_file = changed_files.remove(pos);
+                *file = changed_file;
+            }
         }
     }
     disable_raw_mode()?;

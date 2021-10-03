@@ -2,6 +2,7 @@ use crate::command::Command;
 use crate::command::CommandHandler;
 use crate::command::CommandHandlerStatus;
 
+use super::CommandType;
 use super::centered_rect_fit_text;
 use super::Action;
 use super::FocusState;
@@ -174,7 +175,7 @@ impl KeyPressConsumer for CommandPopup {
                 };
             }
             KeyCode::F(2) => {
-                return Action::RunCommands(self.commands.clone());
+                return Action::RunCommands((CommandType::AlterFiles, self.commands.clone()));
             }
             KeyCode::Esc => {
                 return Action::ClosePopup;
@@ -320,16 +321,18 @@ impl KeyPressConsumer for MessagePopup {
 
 pub(crate) struct CommandRunnerPopup<'a> {
     pub(crate) command_handler: Option<CommandHandler>,
+    pub(crate) command_type: CommandType,
     pub(crate) scroll: u16,
-    pub(crate) results: Vec<std::io::Result<Command>>,
+    pub(crate) results: Option<Vec<Command>>,
     pub(crate) log: Text<'a>,
     pub(crate) error: bool,
 }
 
 impl<'a> CommandRunnerPopup<'a> {
-    pub(crate) fn new(commands: Vec<Command>) -> Self {
+    pub(crate) fn new(commands: Vec<Command>, command_type: CommandType) -> Self {
         CommandRunnerPopup {
             command_handler: Some(CommandHandler::new(commands)),
+            command_type,
             scroll: Default::default(),
             results: Default::default(),
             log: Default::default(),
@@ -356,9 +359,10 @@ impl<'a> CommandRunnerPopup<'a> {
                     self.command_handler = Some(command_handler);
                 }
                 CommandHandlerStatus::Done => {
+                    let mut done_commands: Vec<Command> = Vec::new();
                     self.scroll = 0;
-                    self.results = command_handler.into_results();
-                    for res in self.results.iter() {
+                    let results: Vec<std::io::Result<Command>> = command_handler.into_results();
+                    for res in results.into_iter() {
                         match res {
                             Ok(command) => {
                                 self.log.extend(Text::styled(
@@ -394,6 +398,8 @@ impl<'a> CommandRunnerPopup<'a> {
                                     ));
                                 }
                                 self.log.extend(Text::raw("\n"));
+                                // put command in results
+                                done_commands.push(command);
                             }
                             Err(err) => {
                                 self.log.extend(Text::styled(
@@ -405,6 +411,7 @@ impl<'a> CommandRunnerPopup<'a> {
                             }
                         }
                     }
+                    self.results = Some(done_commands);
                 }
             };
         } else {
@@ -478,17 +485,18 @@ impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
                 };
             }
             KeyCode::Esc => {
-                return if self.command_handler.is_none() {
-                    Action::ReloadFiles
+                // or self.results.is_some()
+                return if self.results.is_some() {
+                    Action::CommandsDone((self.command_type, self.results.take().unwrap()))
                 } else {
-                    Action::ClosePopup
+                    Action::Pass
                 }
             }
             KeyCode::Enter => {
-                return if self.command_handler.is_none() {
-                    Action::ReloadFiles
+                return if self.results.is_some() {
+                    Action::CommandsDone((self.command_type, self.results.take().unwrap()))
                 } else {
-                    Action::ClosePopup
+                    Action::Pass
                 }
             }
             _ => {}

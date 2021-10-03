@@ -34,19 +34,19 @@ impl Command {
         }
     }
 
-    pub fn to_log_string(&self) -> String {
-        let mut message = format!("Command: {:}\n", self.to_cmd_string().unwrap());
-        if let Some(ref output) = self.output {
-            if output.status.success() {
-                message.push_str("Success");
-            } else {
-                message.push_str(&format!("Error: {:}", output.status));
-            }
-        } else {
-            message.push_str("Has not run.");
-        }
-        message
-    }
+    // pub fn to_log_string(&self) -> String {
+    //     let mut message = format!("Command: {:}\n", self.to_cmd_string().unwrap());
+    //     if let Some(ref output) = self.output {
+    //         if output.status.success() {
+    //             message.push_str("Success");
+    //         } else {
+    //             message.push_str(&format!("Error: {:}", output.status));
+    //         }
+    //     } else {
+    //         message.push_str("Has not run.");
+    //     }
+    //     message
+    // }
 
     pub fn success_string(&self) -> String {
         let mut message = String::new();
@@ -99,7 +99,6 @@ impl Command {
 
 pub(crate) struct CommandHandler {
     command_thread: JoinHandle<()>,
-    command_sender: mpsc::Sender<Option<Command>>,
     result_receiver: mpsc::Receiver<std::io::Result<Command>>,
     done_commands: Vec<std::io::Result<Command>>,
     num_commands: usize,
@@ -112,42 +111,34 @@ pub(crate) enum CommandHandlerStatus {
 }
 
 impl CommandHandler {
-    //TODO: directly pass commands to constructor?
-    // directly move all commands into the channel
-    // have a check/poll method that returns the progress in percent and also tells you when everything is done
-    // (the poll function internally gets result with try_recv (as long as there is something available))
-    // the function then stores done commands in an internal vector
-    // At the end, when the poll methods returns that everything is done (100%) Results can be fetched without blocking
-    // using a method that also consumes the CommandHandler (into_results?)
     pub(crate) fn new(commands: Vec<Command>)-> Self{
         let (tx_cmd, rx_cmd): (
-            mpsc::Sender<Option<Command>>,
-            mpsc::Receiver<Option<Command>>,
+            mpsc::Sender<Command>,
+            mpsc::Receiver<Command>,
         ) = mpsc::channel();
         let (tx_res, rx_res): (
             mpsc::Sender<std::io::Result<Command>>,
             mpsc::Receiver<std::io::Result<Command>>,
         ) = mpsc::channel();
         let command_thread = thread::spawn(move || loop {
-            let task = rx_cmd.recv().unwrap();
-            if let Some(mut command) = task {
-                match command.run() {
-                    Ok(_) => tx_res.send(Ok(command)).unwrap(),
-                    Err(err) => tx_res.send(Err(err)).unwrap()
-                };
-            } else {
-                break;
+            let task = rx_cmd.recv();
+            match task {
+                Ok(mut command) => {
+                    match command.run() {
+                        Ok(_) => tx_res.send(Ok(command)).unwrap(),
+                        Err(err) => tx_res.send(Err(err)).unwrap()
+                    };
+                }
+                Err(_) => break // producer is gone, we are done,
             }
         });
         let num_commands = commands.len();
         for command in commands {
-            tx_cmd.send(Some(command)).unwrap();
+            tx_cmd.send(command).unwrap();
         }
-        tx_cmd.send(None).unwrap();
 
         Self {
             command_thread,
-            command_sender: tx_cmd,
             result_receiver: rx_res,
             done_commands: Default::default(),
             num_commands
@@ -172,6 +163,7 @@ impl CommandHandler {
     }
 
     pub(crate) fn into_results(self) -> Vec<std::io::Result<Command>>{
+        self.command_thread.join().unwrap();
         self.done_commands
     }
 }

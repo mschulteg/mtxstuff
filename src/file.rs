@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process;
 
 use serde_json::Value;
@@ -38,7 +38,23 @@ pub struct File {
     pub json: Value,
 }
 
+impl PartialEq for File {
+    fn eq(&self, other: &Self) -> bool {
+        self.file_name == other.file_name
+    }
+}
+
 impl File {
+    // pub fn rescan(&mut self) {
+    //     let path = Path::new(&self.file_name);
+    //     let new = File::from_file(path).unwrap();
+    //     self.video_tracks = new.video_tracks;
+    //     self.audio_tracks = new.audio_tracks;
+    //     self.subtitle_tracks = new.subtitle_tracks;
+    //     self.file_name = new.file_name;
+    //     self.json = new.json;
+    // }
+
     pub fn from_file(path: &Path) -> Option<Self> {
         let json_bytes = process::Command::new("mkvmerge")
             .arg("--identification-format")
@@ -49,6 +65,11 @@ impl File {
             .unwrap()
             .stdout;
         let json_str = std::str::from_utf8(&json_bytes[..]).unwrap();
+        let json_val = serde_json::from_str(json_str).unwrap();
+        Self::from_json(json_val)
+    }
+
+    pub fn from_json_str(json_str: &str) -> Option<Self>{
         let json_val = serde_json::from_str(json_str).unwrap();
         Self::from_json(json_val)
     }
