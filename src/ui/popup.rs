@@ -112,7 +112,7 @@ impl CommandPopup {
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .title(Span::styled(
-                "Commands Preview - Enter to save commands to mtx_commands.sh - Esc to abort",
+                "Commands Preview - Press F2 again to apply the changes - or press Enter to save commands to mtx_commands.sh - Esc to abort",
                 Style::default().add_modifier(Modifier::BOLD),
             ))
             .border_type(BorderType::Thick)
@@ -439,7 +439,7 @@ impl<'a> CommandRunnerPopup<'a> {
                 frame.render_widget(Clear, area);
                 frame.render_widget(paragraph, area);
             } else {
-                let message = "Done.";
+                let message = "Done - Press Enter";
                 // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
                 let margin_y = 0;
                 let area = centered_rect_fit_text(message.as_ref(), 2, margin_y, area);
