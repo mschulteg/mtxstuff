@@ -1,11 +1,4 @@
-OLD:
-- Command methods should not return a vector of arguments??
-- builder pattern for command (but it always has to run on the same file)
-
-NEW:
-- Refresh changed files (automatically or via button)
 - Make Frame<CrosstermBackend<Stdout>> generic for popup trait
-- Add option to run the commands
 - Also Gray out top and bottom bar when in background?
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - Say when mkvtoolnix is not found
@@ -13,4 +6,4 @@ NEW:
 - Fix undefined in CLI - see row()
 - scroll instead of selectable list for command output
 - Change CommandHandler to Handler that handles any closure instad of Commands only
-- Make CommandHandler parallel
+- Make CommandHandler run parallel
