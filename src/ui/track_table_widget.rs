@@ -71,6 +71,13 @@ impl KeyPressConsumer for TrackTableWidget {
                     let sel_row = self.selected().unwrap();
                     let gkey = self.keys_copy.get_mut(sel_row).unwrap();
                     match selected_col {
+                        0 => {
+                            if let Some(ref lang) = gkey.language {
+                                return Action::EditString(lang.clone());
+                            } else {
+                                return Action::EditString("".to_owned());
+                            }
+                        }
                         1 => {
                             if let Some(ref name) = gkey.name {
                                 return Action::EditString(name.clone());
