@@ -332,17 +332,32 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                         .track_table
                         .selected()
                         .expect("Currently edited item must be selected");
-                    self.track_table
+                    let col = self
+                        .track_table
+                        .selected_col
+                        .expect("Currently edited item must be selected");
+
+                    let group_key = self
+                        .track_table
                         .get_keys_copy_mut()
                         .get_mut(row)
-                        .expect("Currently edit item must exist")
-                        .name = Some(string);
+                        .expect("Currently edit item must exist");
+                    match col {
+                        0 => {
+                            group_key.language = Some(string);
+                        }
+                        1 => {
+                            group_key.name = Some(string);
+                        }
+                        _ => {}
+                    };
                 }
                 self.popup_data.popup_stack.pop();
             }
             Action::LoadGroup => self.load_selected_group(),
             Action::RunCommands((command_type, commands)) => {
-                let new_popup = CommandRunnerPopup::new(commands, command_type, "Applying changes".to_string());
+                let new_popup =
+                    CommandRunnerPopup::new(commands, command_type, "Applying changes".to_string());
                 self.popup_data.popup_stack.push(Box::new(new_popup));
             }
             Action::CommandsDone((CommandType::AlterFiles, _)) => {
@@ -359,7 +374,11 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                     command.arguments.push(file.file_name.clone());
                     commands.push(command);
                 }
-                let new_popup = CommandRunnerPopup::new(commands, CommandType::ReloadFiles, "Reloading files".to_string());
+                let new_popup = CommandRunnerPopup::new(
+                    commands,
+                    CommandType::ReloadFiles,
+                    "Reloading files".to_string(),
+                );
                 self.popup_data.popup_stack.push(Box::new(new_popup));
             }
             Action::CommandsDone((CommandType::ReloadFiles, commands)) => {
@@ -595,7 +614,7 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
             }
         };
         for file in files.iter_mut() {
-            if let Some(pos) = changed_files.iter().position(|ch_f| ch_f == file ){
+            if let Some(pos) = changed_files.iter().position(|ch_f| ch_f == file) {
                 let changed_file = changed_files.remove(pos);
                 *file = changed_file;
             }

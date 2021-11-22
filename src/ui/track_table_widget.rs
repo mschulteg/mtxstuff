@@ -21,7 +21,7 @@ use tui::{
 #[derive(Clone, Default)]
 pub(crate) struct TrackTableWidget {
     table_state: TableState,
-    selected_col: Option<usize>,
+    pub(crate) selected_col: Option<usize>,
     keys_orig: Vec<GroupKey>,
     keys_copy: Vec<GroupKey>,
 }
