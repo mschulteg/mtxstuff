@@ -121,7 +121,7 @@ impl<'a> TrackOperations<'a> {
         arguments.push(format!("track:@{}", track_id + 1));
         if let Some(name) = name {
             arguments.push("--set".to_owned());
-            arguments.push(format!("language=\"{}\"", name));
+            arguments.push(format!("language={}", name));
         } else {
             arguments.push("--delete".to_owned());
             arguments.push("language".to_owned());
