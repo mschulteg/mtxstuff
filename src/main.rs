@@ -14,7 +14,6 @@ use crate::ui::main_loop;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
-    //let walker = WalkDir::new("/mnt/k/Incoming/tmp/mtxstuff_test").into_iter();
     let walker = WalkDir::new(path).into_iter();
     let files: Vec<PathBuf> = walker
         .filter(|e| e.as_ref().unwrap().metadata().unwrap().is_file())
