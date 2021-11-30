@@ -11,10 +11,17 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Build binary
-        run: cargo build --release
-      - name: Archive code coverage results
+      - name: Generate package (crate file)
+        run: cargo package
+      - name: Upload package (crate file)
         uses: actions/upload-artifact@v2
         with:
-          name: mtxstuff_binary
-          path: target/release/mtxstuff
+          name: crate
+          path: target/package/mtxstuff-*.crate
+      #- name: Build binary
+      #  run: cargo build --release
+      #- name: Upload binary
+      #  uses: actions/upload-artifact@v2
+      #  with:
+      #    name: mtxstuff_binary
+      #    path: target/release/mtxstuff
