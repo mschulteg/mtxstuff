@@ -123,8 +123,12 @@ impl<'a> TrackOperations<'a> {
             arguments.push("--set".to_owned());
             arguments.push(format!("language={}", name));
         } else {
-            arguments.push("--delete".to_owned());
-            arguments.push("language".to_owned());
+            arguments.push("--set".to_owned());
+            arguments.push(format!("language=und"));
+            // This just results in language being set to eng
+            // see https://gitlab.com/mbunkus/mkvtoolnix/-/issues/1929
+            // arguments.push("--delete".to_owned());
+            // arguments.push("language".to_owned());
         }
     }
 

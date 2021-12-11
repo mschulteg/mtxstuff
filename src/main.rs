@@ -165,12 +165,12 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             println!("SUBS");
             if let Some(group_no) = group_no {
                 let group = groups.get(group_no).unwrap().clone();
-                print_groups(&[group.clone()]);
+                print_groups(&[group.clone()], true);
                 (Some(group), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();
                 groups.iter().for_each(|group| files.extend(&group.files));
-                print_groups(&groups);
+                print_groups(&groups, false);
                 (None, groups)
             }
         }
@@ -179,12 +179,12 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             println!("AUDIO");
             if let Some(group_no) = group_no {
                 let group = groups.get(group_no).unwrap().clone();
-                print_groups(&[group.clone()]);
+                print_groups(&[group.clone()], true);
                 (Some(group), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();
                 groups.iter().for_each(|group| files.extend(&group.files));
-                print_groups(&groups);
+                print_groups(&groups, false);
                 (None, groups)
             }
         }

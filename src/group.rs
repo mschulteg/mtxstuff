@@ -82,7 +82,7 @@ impl GroupKey {
     }
 
     pub fn row(&self) -> Vec<String> {
-        let language = self.language.clone().unwrap_or_else(|| String::from(""));
+        let language = self.language.clone().unwrap_or_else(|| String::from("und"));
         let name = self.name.clone().unwrap_or_else(|| String::from(""));
         let default = if self.default {
             "[x]".to_owned()
@@ -126,10 +126,12 @@ pub fn groupby(files: &[File], key_func: fn(&File) -> Vec<GroupKey>) -> Vec<Grou
     groups
 }
 
-pub fn print_groups(groups: &[Group]) {
+pub fn print_groups(groups: &[Group], selected: bool) {
     for (idx, group) in groups.iter().enumerate() {
         //println!("Group with key {:?}", group.key);
-        println!("---Group {}---", idx);
+        if !selected {
+            println!("---Group {}---", idx);
+        }
         println!("Keys for this group are:");
         if !group.key.is_empty(){
             print_groupkeys(&group.key);
