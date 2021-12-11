@@ -73,7 +73,6 @@ pub(crate) enum CommandType {
     ReloadFiles,
 }
 
-#[derive(PartialEq)]
 pub(crate) enum Action {
     NavigateForward(ActiveWidget),
     NavigateBackward(ActiveWidget),
@@ -263,7 +262,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
         };
         // TODO: Match key_codes for GrouTabData itself (Tab switching, Quitting) if not in edit mode
         // For now, only do it if the active widget returned Action::Pass
-        if res_action == Action::Pass && !self.popup_data.active() {
+        if matches!(res_action, Action::Pass) && !self.popup_data.active() {
             match key_code {
                 KeyCode::Char('i') => return Action::SwitchTab(MenuItem::Home),
                 KeyCode::Char('s') => return Action::SwitchTab(MenuItem::Subs),

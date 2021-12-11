@@ -17,14 +17,6 @@ pub struct Command {
     pub output: Option<CommandOutput>,
 }
 
-use std::{cmp::PartialEq, mem::discriminant};
-
-impl PartialEq for Command {
-    fn eq(&self, other: &Self) -> bool {
-        discriminant(self) == discriminant(other)
-    }
-}
-
 impl Command {
     pub fn new(executable: impl AsRef<str>) -> Self {
         Command {
@@ -96,7 +88,6 @@ impl Command {
     }
 }
 
-
 pub(crate) struct CommandHandler {
     command_thread: JoinHandle<()>,
     result_receiver: mpsc::Receiver<std::io::Result<Command>>,
@@ -107,15 +98,12 @@ pub(crate) struct CommandHandler {
 #[derive(Clone, Copy)]
 pub(crate) enum CommandHandlerStatus {
     Percent(u16),
-    Done
+    Done,
 }
 
 impl CommandHandler {
-    pub(crate) fn new(commands: Vec<Command>)-> Self{
-        let (tx_cmd, rx_cmd): (
-            mpsc::Sender<Command>,
-            mpsc::Receiver<Command>,
-        ) = mpsc::channel();
+    pub(crate) fn new(commands: Vec<Command>) -> Self {
+        let (tx_cmd, rx_cmd): (mpsc::Sender<Command>, mpsc::Receiver<Command>) = mpsc::channel();
         let (tx_res, rx_res): (
             mpsc::Sender<std::io::Result<Command>>,
             mpsc::Receiver<std::io::Result<Command>>,
@@ -126,10 +114,10 @@ impl CommandHandler {
                 Ok(mut command) => {
                     match command.run() {
                         Ok(_) => tx_res.send(Ok(command)).unwrap(),
-                        Err(err) => tx_res.send(Err(err)).unwrap()
+                        Err(err) => tx_res.send(Err(err)).unwrap(),
                     };
                 }
-                Err(_) => break // producer is gone, we are done,
+                Err(_) => break, // producer is gone, we are done,
             }
         });
         let num_commands = commands.len();
@@ -141,28 +129,26 @@ impl CommandHandler {
             command_thread,
             result_receiver: rx_res,
             done_commands: Default::default(),
-            num_commands
+            num_commands,
         }
     }
 
-    pub(crate) fn check(&mut self) -> CommandHandlerStatus{
+    pub(crate) fn check(&mut self) -> CommandHandlerStatus {
         loop {
             match self.result_receiver.try_recv() {
-                Ok(received) => {
-                    self.done_commands.push(received)
-                },
+                Ok(received) => self.done_commands.push(received),
                 Err(_) => break,
             }
         }
         if self.num_commands == self.done_commands.len() {
-            return CommandHandlerStatus::Done
+            return CommandHandlerStatus::Done;
         } else {
             let ratio = self.done_commands.len() as f64 / self.num_commands as f64;
             CommandHandlerStatus::Percent((ratio * 100f64).round() as u16)
         }
     }
 
-    pub(crate) fn into_results(self) -> Vec<std::io::Result<Command>>{
+    pub(crate) fn into_results(self) -> Vec<std::io::Result<Command>> {
         self.command_thread.join().unwrap();
         self.done_commands
     }
@@ -185,8 +171,13 @@ mod tests {
         let mut command_handler = CommandHandler::new(commands);
         loop {
             match command_handler.check() {
-                CommandHandlerStatus::Percent(percent) => {println!("{:}%", percent)},
-                CommandHandlerStatus::Done => {println!("done"); break},
+                CommandHandlerStatus::Percent(percent) => {
+                    println!("{:}%", percent)
+                }
+                CommandHandlerStatus::Done => {
+                    println!("done");
+                    break;
+                }
             }
             thread::sleep(std::time::Duration::from_millis(100));
         }
@@ -196,5 +187,4 @@ mod tests {
             assert!(output.status.success());
         }
     }
-
 }
