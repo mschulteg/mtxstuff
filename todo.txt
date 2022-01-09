@@ -3,8 +3,7 @@
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
 - Say when mkvtoolnix is not found
 - Support multiple track selections and edits in CLI mode
-- scroll instead of selectable list for command output
-- Change CommandHandler to Handler that handles any closure instad of Commands only
 - Make CommandHandler run parallel
 - CLI: Add colors; Highlight selected track
 - CLI: Do not show group number when selecting group with --group n
+- Catch special characters like " in track names (for mtx_commands.sh generation)

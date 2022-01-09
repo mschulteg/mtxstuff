@@ -109,7 +109,7 @@ impl<'a> TrackOperations<'a> {
         arguments.push(format!("track:@{}", track_id + 1));
         if let Some(name) = name {
             arguments.push("--set".to_owned());
-            arguments.push(format!("name=\"{}\"", name));
+            arguments.push(format!("name={}", name));
         } else {
             arguments.push("--delete".to_owned());
             arguments.push("name".to_owned());
