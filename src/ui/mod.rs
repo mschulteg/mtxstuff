@@ -246,11 +246,6 @@ struct GroupTabData<'a> {
 
 impl<'a> KeyPressConsumer for GroupTabData<'a> {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
-        log::info!(
-            "active_widget is:{:?}, keycode is {:?}",
-            self.active_widget,
-            key_code
-        );
         let res_action = if self.popup_data.active() {
             self.popup_data.process_key(key_code)
         } else {

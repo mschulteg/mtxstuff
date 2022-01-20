@@ -1,7 +1,6 @@
 - Make Frame<CrosstermBackend<Stdout>> generic for popup trait
 - Also Gray out top and bottom bar when in background?
 - Use more spans, then we can also use Spans.width() and remove the explicit unicode-width dep.
-- Say when mkvtoolnix is not found
 - Support multiple track selections and edits in CLI mode
 - Make CommandHandler run parallel
 - CLI: Add colors; Highlight selected track

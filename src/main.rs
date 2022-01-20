@@ -25,13 +25,7 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
 
 use clap::{App, AppSettings, Arg};
 
-use log::info;
-
 fn main() -> anyhow::Result<()>{
-    #[cfg(debug_assertions)]
-    log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
-    info!("test");
-
     let arg_directory = Arg::with_name("directory")
         .help("Path to directory")
         .required(true);
