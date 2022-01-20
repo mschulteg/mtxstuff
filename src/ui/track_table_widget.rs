@@ -251,7 +251,7 @@ impl TrackTableWidget {
         let group_detail = group_detail
             .header(Row::new(vec![
                 Cell::from(Span::styled(
-                    "lange",
+                    "lang",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
