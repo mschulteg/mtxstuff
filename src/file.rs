@@ -1,3 +1,4 @@
+use std;
 use std::path::Path;
 use std::process;
 
@@ -44,32 +45,40 @@ impl PartialEq for File {
     }
 }
 
-impl File {
-    // pub fn rescan(&mut self) {
-    //     let path = Path::new(&self.file_name);
-    //     let new = File::from_file(path).unwrap();
-    //     self.video_tracks = new.video_tracks;
-    //     self.audio_tracks = new.audio_tracks;
-    //     self.subtitle_tracks = new.subtitle_tracks;
-    //     self.file_name = new.file_name;
-    //     self.json = new.json;
-    // }
+#[derive(Debug, Clone)]
+struct IdentifyStructureError;
+impl std::fmt::Display for IdentifyStructureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Missing or wrong shaped keys/values in mkvmerge identify output"
+        )
+    }
+}
 
-    pub fn from_path(path: &Path) -> Option<Self> {
+use anyhow::{Context, Result};
+impl std::error::Error for IdentifyStructureError {}
+
+impl File {
+    pub fn from_path(path: &Path) -> Result<Self> {
         let json_bytes = process::Command::new("mkvmerge")
             .arg("--identification-format")
             .arg("json")
             .arg("--identify")
             .arg(path)
             .output()
-            .unwrap()
+            .context("Calling mkvmerge failed")?
             .stdout;
-        let json_str = std::str::from_utf8(&json_bytes[..]).unwrap();
-        let json_val = serde_json::from_str(json_str).unwrap();
-        Self::from_json(json_val)
+        let json_str = std::str::from_utf8(&json_bytes[..])?;
+        let json_val = serde_json::from_str(json_str)?;
+        if let Some(file) = Self::from_json(json_val) {
+            Ok(file)
+        } else {
+            Err(IdentifyStructureError.into())
+        }
     }
 
-    pub fn from_json_str(json_str: &str) -> Option<Self>{
+    pub fn from_json_str(json_str: &str) -> Option<Self> {
         let json_val = serde_json::from_str(json_str).unwrap();
         Self::from_json(json_val)
     }

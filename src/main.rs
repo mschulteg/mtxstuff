@@ -29,7 +29,7 @@ use log::info;
 #[cfg(debug_assertions)]
 use log4rs;
 
-fn main() {
+fn main() -> anyhow::Result<()>{
     #[cfg(debug_assertions)]
     log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
     info!("test");
@@ -105,19 +105,19 @@ fn main() {
         (name, Some(sub_m)) => (name, sub_m),
         _ => {
             println!("No subcommand provided, exiting.");
-            return;
+            return Ok(());
         }
     };
 
     let path = sub_matches.value_of("directory");
     let path = PathBuf::from(path.unwrap());
     let paths = get_files_recursively(&path);
-    let files: Option<Vec<File>> = paths
+    let files: anyhow::Result<Vec<File>> = paths
         .iter()
         .map(AsRef::as_ref)
         .map(File::from_path)
         .collect();
-    let files = files.unwrap();
+    let files = files?;
 
     match sub_name {
         "subs" => cli_mode(files, sub_name, sub_matches),
@@ -126,6 +126,7 @@ fn main() {
         "tui" => tui_mode(files), //, sub_name, sub_matches),
         _ => panic!(),
     }
+    Ok(())
 }
 
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {

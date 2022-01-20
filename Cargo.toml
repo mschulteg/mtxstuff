@@ -5,8 +5,8 @@ authors = ["Moritz Schulte <mschulte.g@gmail.com>"]
 edition = "2018"
 description = "Tool to edit audio and subtitle track flags on mkv files"
 readme = "README.md"
+publish = false
 license = "MIT"
-license_file = "LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,6 +19,7 @@ clap = "2.33.3"
 log = { version = "0.4", features=["release_max_level_off"]}
 log4rs = "1.0.0"
 unicode-width = "0.1"
+anyhow = "1.0"
 
 crossterm = { version = "0.20", features = [ "serde" ] }
 tui = { version = "0.16", default-features = false, features = ['crossterm', 'serde'] }

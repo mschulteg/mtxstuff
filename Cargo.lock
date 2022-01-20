@@ -301,6 +301,7 @@ dependencies = [
 name = "mtxstuff"
 version = "0.1.4"
 dependencies = [
+ "anyhow",
  "clap",
  "crossterm",
  "itertools",
