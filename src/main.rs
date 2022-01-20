@@ -107,6 +107,16 @@ fn main() -> anyhow::Result<()>{
         }
     };
 
+    use which::which;
+    if which("mkvmerge").is_err() {
+        println!("Could not find mkvmerge, exiting.");
+        return Ok(());
+    }
+    if which("mkvpropedit").is_err() {
+        println!("Could not find mkvpropedit, exiting.");
+        return Ok(());
+    }
+
     let path = sub_matches.value_of("directory");
     let path = PathBuf::from(path.unwrap());
     let paths = get_files_recursively(&path);
