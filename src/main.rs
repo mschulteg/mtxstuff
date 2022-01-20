@@ -115,7 +115,7 @@ fn main() {
     let files: Option<Vec<File>> = paths
         .iter()
         .map(AsRef::as_ref)
-        .map(File::from_file)
+        .map(File::from_path)
         .collect();
     let files = files.unwrap();
 

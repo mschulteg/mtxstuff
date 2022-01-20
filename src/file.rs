@@ -55,7 +55,7 @@ impl File {
     //     self.json = new.json;
     // }
 
-    pub fn from_file(path: &Path) -> Option<Self> {
+    pub fn from_path(path: &Path) -> Option<Self> {
         let json_bytes = process::Command::new("mkvmerge")
             .arg("--identification-format")
             .arg("json")
