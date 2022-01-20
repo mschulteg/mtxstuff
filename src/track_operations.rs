@@ -18,11 +18,11 @@ pub(crate) struct TrackOperations<'a> {
 
 impl<'a> TrackOperations<'a> {
     pub(crate) fn new(track_type: TrackType) -> Self {
-        TrackOperations { track_type: track_type, cmds: Default::default() }
+        TrackOperations { track_type, cmds: Default::default() }
     }
     
     pub(crate) fn empty(&self) -> bool {
-        self.cmds.len() != 0
+        !self.cmds.is_empty()
     }
 
     pub(crate) fn add(&mut self, track_no: i64, track_command: TrackOperation<'a>) {
@@ -124,7 +124,7 @@ impl<'a> TrackOperations<'a> {
             arguments.push(format!("language={}", name));
         } else {
             arguments.push("--set".to_owned());
-            arguments.push(format!("language=und"));
+            arguments.push("language=und".to_string());
             // This just results in language being set to eng
             // see https://gitlab.com/mbunkus/mkvtoolnix/-/issues/1929
             // arguments.push("--delete".to_owned());

@@ -416,7 +416,7 @@ impl<'a> GroupTabData<'a> {
 
     fn generate_commands(&mut self) {
         let sel_group = self.selected_group().unwrap();
-        let commands = sel_group.apply_changes(&self.track_table.get_keys_copy(), self.track_type);
+        let commands = sel_group.apply_changes(self.track_table.get_keys_copy(), self.track_type);
         let command_popup = CommandPopup::new(commands);
         self.popup_data.popup_stack.push(Box::new(command_popup));
     }

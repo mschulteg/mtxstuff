@@ -2,9 +2,9 @@ use crate::command::Command;
 use crate::command::CommandHandler;
 use crate::command::CommandHandlerStatus;
 
-use super::CommandType;
 use super::centered_rect_fit_text;
 use super::Action;
+use super::CommandType;
 use super::FocusState;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
@@ -47,7 +47,7 @@ pub(crate) struct PopupRenderer {
 
 impl PopupRenderer {
     pub(crate) fn active(&self) -> bool {
-        self.popup_stack.len() != 0
+        !self.popup_stack.is_empty()
     }
 }
 
@@ -353,11 +353,13 @@ impl<'a> CommandRunnerPopup<'a> {
             match command_handler.check() {
                 CommandHandlerStatus::Percent(percent) => {
                     let gauge_box = Gauge::default()
-                        .block(Block::default()
-                            .title(self.title.clone())
-                            .borders(Borders::ALL)
-                            .border_type(BorderType::Thick)
-                            .border_style(border_style))
+                        .block(
+                            Block::default()
+                                .title(self.title.clone())
+                                .borders(Borders::ALL)
+                                .border_type(BorderType::Thick)
+                                .border_style(border_style),
+                        )
                         .gauge_style(Style::default().fg(focus.sel_color()))
                         .percent(percent);
                     let area = centered_rect(70, 10, area);
@@ -421,47 +423,45 @@ impl<'a> CommandRunnerPopup<'a> {
                     self.results = Some(done_commands);
                 }
             };
+        } else if self.error {
+            let paragraph = Paragraph::new(self.log.clone())
+                .style(Style::default())
+                .block(
+                    Block::default()
+                        .title("Log")
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .border_style(border_style),
+                )
+                .alignment(Alignment::Left)
+                .wrap(Wrap { trim: true })
+                .scroll((self.scroll, 0));
+            let area = centered_rect(80, 80, area);
+            frame.render_widget(Clear, area);
+            frame.render_widget(paragraph, area);
         } else {
-            if self.error {
-                let paragraph = Paragraph::new(self.log.clone())
-                    .style(Style::default())
-                    .block(
-                        Block::default()
-                            .title("Log")
-                            .borders(Borders::ALL)
-                            .border_type(BorderType::Thick)
-                            .border_style(border_style),
-                    )
-                    .alignment(Alignment::Left)
-                    .wrap(Wrap { trim: true })
-                    .scroll((self.scroll, 0));
-                let area = centered_rect(80, 80, area);
-                frame.render_widget(Clear, area);
-                frame.render_widget(paragraph, area);
-            } else {
-                let message = "Done - Press Enter";
-                // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
-                let margin_y = 0;
-                let area = centered_rect_fit_text(message.as_ref(), 2, margin_y, area);
-                let mut spans = Vec::<Spans>::new();
-                for _ in 0..margin_y {
-                    // add empty lines to vertically center text
-                    spans.push(Spans::from(vec![Span::raw("")]));
-                }
-                spans.push(Spans::from(vec![Span::raw(message)]));
-                //let input = Paragraph::new(self.message.as_ref())
-                let input = Paragraph::new(spans)
-                    .style(Style::default().fg(Color::White))
-                    .block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .border_type(BorderType::Thick)
-                            .border_style(border_style),
-                    )
-                    .alignment(Alignment::Center);
-                frame.render_widget(Clear, area);
-                frame.render_widget(input, area);
+            let message = "Done - Press Enter";
+            // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
+            let margin_y = 0;
+            let area = centered_rect_fit_text(message, 2, margin_y, area);
+            let mut spans = Vec::<Spans>::new();
+            for _ in 0..margin_y {
+                // add empty lines to vertically center text
+                spans.push(Spans::from(vec![Span::raw("")]));
             }
+            spans.push(Spans::from(vec![Span::raw(message)]));
+            //let input = Paragraph::new(self.message.as_ref())
+            let input = Paragraph::new(spans)
+                .style(Style::default().fg(Color::White))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .border_style(border_style),
+                )
+                .alignment(Alignment::Center);
+            frame.render_widget(Clear, area);
+            frame.render_widget(input, area);
         }
     }
 }
@@ -496,7 +496,7 @@ impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
                     Action::CommandsDone((self.command_type, self.results.take().unwrap()))
                 } else {
                     Action::Pass
-                }
+                };
             }
             KeyCode::Enter => {
                 return if self.results.is_some() {

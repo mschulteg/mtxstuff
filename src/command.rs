@@ -56,7 +56,7 @@ impl Command {
 
     pub fn to_cmd_string(&self) -> Option<String> {
         // Do not check this here because command is supposed to be universal
-        if self.arguments.len() == 0 {
+        if self.arguments.is_empty() {
             return None;
         }
         let mut string = self.executable.clone();
@@ -134,14 +134,11 @@ impl CommandHandler {
     }
 
     pub(crate) fn check(&mut self) -> CommandHandlerStatus {
-        loop {
-            match self.result_receiver.try_recv() {
-                Ok(received) => self.done_commands.push(received),
-                Err(_) => break,
-            }
+        while let Ok(received) = self.result_receiver.try_recv() {
+            self.done_commands.push(received)
         }
         if self.num_commands == self.done_commands.len() {
-            return CommandHandlerStatus::Done;
+            CommandHandlerStatus::Done
         } else {
             let ratio = self.done_commands.len() as f64 / self.num_commands as f64;
             CommandHandlerStatus::Percent((ratio * 100f64).round() as u16)

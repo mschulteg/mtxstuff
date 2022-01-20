@@ -26,8 +26,6 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
 use clap::{App, AppSettings, Arg};
 
 use log::info;
-#[cfg(debug_assertions)]
-use log4rs;
 
 fn main() -> anyhow::Result<()>{
     #[cfg(debug_assertions)]
@@ -229,7 +227,7 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             .iter()
             .map(|file| track_ops.generate_command(file))
             .collect();
-        let results: std::io::Result<()> = commands.iter_mut().map(|cmd| cmd.run()).collect();
+        let results: std::io::Result<()> = commands.iter_mut().try_for_each(|cmd| cmd.run());
         match results {
             Ok(_) => {}
             Err(err) => println!("Error when calling command - aborting: {}", err),
