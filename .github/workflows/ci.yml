@@ -7,21 +7,36 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
       - name: Get rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Generate package (crate file)
-        run: cargo package
-      - name: Upload package (crate file)
-        uses: actions/upload-artifact@v2
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Archive Binary
+        run: tar -czf binary.tar.gz -C target/release/ mtxstuff
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: crate
-          path: target/package/mtxstuff-*.crate
-      #- name: Build binary
-      #  run: cargo build --release
-      #- name: Upload binary
-      #  uses: actions/upload-artifact@v2
-      #  with:
-      #    name: mtxstuff_binary
-      #    path: target/release/mtxstuff
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Binary
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./binary.tar.gz
+          asset_name: mtxstuff-${{ github.ref }}-amd64.tar.gz
+          asset_content_type: application/gzip
+  
