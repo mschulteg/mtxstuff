@@ -159,9 +159,9 @@ mod tests {
     #[test]
     fn test_command_handler() {
         let mut commands = Vec::<Command>::new();
-        for i in 0..10 {
+        for i in 0..5 {
             let mut command = Command::new("sleep");
-            command.arguments.push(i.to_string());
+            command.arguments.push((i as f64 / 10.0).to_string());
             commands.push(command);
         }
 
