@@ -231,6 +231,10 @@ fn centered_rect_fit_text(text: &str, margin_x: u16, margin_y: u16, r: Rect) -> 
 
 pub(crate) trait KeyPressConsumer {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action;
+
+    fn check_auto_close(&mut self) -> Action {
+        Action::Pass
+    }
 }
 
 //#[derive(Clone)]
@@ -245,6 +249,10 @@ struct GroupTabData<'a> {
 }
 
 impl<'a> KeyPressConsumer for GroupTabData<'a> {
+    fn check_auto_close(&mut self) -> Action {
+        self.popup_data.check_auto_close()
+    }
+
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         let res_action = if self.popup_data.active() {
             self.popup_data.process_key(key_code)
@@ -270,7 +278,13 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
                 _ => {}
             }
         }
-        match res_action {
+        self.process_action(res_action)
+    }
+}
+
+impl<'a> GroupTabData<'a> {
+    fn process_action(&mut self, action: Action) -> Action {
+        match action {
             Action::NavigateForward(src_widget) => match src_widget {
                 ActiveWidget::Details => {
                     if self.group_files_list.try_enter() {
@@ -392,9 +406,7 @@ impl<'a> KeyPressConsumer for GroupTabData<'a> {
         }
         Action::Pass
     }
-}
 
-impl<'a> GroupTabData<'a> {
     fn new(groups: &'a [Group<'a>], track_type: TrackType) -> Self {
         GroupTabData {
             group_list: GroupListWidget::new(groups.len()),
@@ -421,7 +433,7 @@ impl<'a> GroupTabData<'a> {
         self.group_files_list = GroupFilesListWidget::from_group(self.selected_group());
     }
 
-    fn selected_group(&self) -> Option<&Group> {
+    fn selected_group(&'_ self) -> Option<&'_ Group<'_>> {
         self.group_list
             .selected()
             .and_then(|selected| self.groups.get(selected))
@@ -604,7 +616,32 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
                         _ => {}
                     }
                 }
-                Event::Tick => {}
+                Event::Tick => {
+                    // Check for auto-close popups
+                    let action = match active_menu_item {
+                        MenuItem::Subs => {
+                            let auto_close_action = sub_tab_data.check_auto_close();
+                            sub_tab_data.process_action(auto_close_action)
+                        }
+                        MenuItem::Audio => {
+                            let auto_close_action = audio_tab_data.check_auto_close();
+                            audio_tab_data.process_action(auto_close_action)
+                        }
+                        _ => Action::Pass,
+                    };
+                    match action {
+                        Action::Quit => {
+                            break 'outer;
+                        }
+                        Action::ReloadFiles(changed_files) => {
+                            break 'inner changed_files;
+                        }
+                        Action::SwitchTab(MenuItem::Home) => active_menu_item = MenuItem::Home,
+                        Action::SwitchTab(MenuItem::Subs) => active_menu_item = MenuItem::Subs,
+                        Action::SwitchTab(MenuItem::Audio) => active_menu_item = MenuItem::Audio,
+                        _ => {}
+                    }
+                }
             }
         };
         for file in files.iter_mut() {

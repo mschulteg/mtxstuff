@@ -49,6 +49,14 @@ impl PopupRenderer {
     pub(crate) fn active(&self) -> bool {
         !self.popup_stack.is_empty()
     }
+
+    pub(crate) fn check_auto_close(&mut self) -> Action {
+        if let Some(active_popup) = self.popup_stack.last_mut() {
+            active_popup.check_auto_close()
+        } else {
+            Action::Pass
+        }
+    }
 }
 
 impl PopupRender for PopupRenderer {
@@ -327,6 +335,7 @@ pub(crate) struct CommandRunnerPopup<'a> {
     pub(crate) results: Option<Vec<Command>>,
     pub(crate) log: Text<'a>,
     pub(crate) error: bool,
+    pub(crate) auto_close: bool,
 }
 
 impl<'a> CommandRunnerPopup<'a> {
@@ -339,6 +348,7 @@ impl<'a> CommandRunnerPopup<'a> {
             results: Default::default(),
             log: Default::default(),
             error: false,
+            auto_close: false,
         }
     }
 
@@ -421,6 +431,9 @@ impl<'a> CommandRunnerPopup<'a> {
                         }
                     }
                     self.results = Some(done_commands);
+                    if !self.error {
+                        self.auto_close = true;
+                    }
                 }
             };
         } else if self.error {
@@ -439,29 +452,6 @@ impl<'a> CommandRunnerPopup<'a> {
             let area = centered_rect(80, 80, area);
             frame.render_widget(Clear, area);
             frame.render_widget(paragraph, area);
-        } else {
-            let message = "Done - Press Enter";
-            // TODO: DUPLICATE CODE OF MESSAGE BOX - TIDY UP
-            let margin_y = 0;
-            let area = centered_rect_fit_text(message, 2, margin_y, area);
-            let mut spans = Vec::<Spans>::new();
-            for _ in 0..margin_y {
-                // add empty lines to vertically center text
-                spans.push(Spans::from(vec![Span::raw("")]));
-            }
-            spans.push(Spans::from(vec![Span::raw(message)]));
-            //let input = Paragraph::new(self.message.as_ref())
-            let input = Paragraph::new(spans)
-                .style(Style::default().fg(Color::White))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Thick)
-                        .border_style(border_style),
-                )
-                .alignment(Alignment::Center);
-            frame.render_widget(Clear, area);
-            frame.render_widget(input, area);
         }
     }
 }
@@ -478,6 +468,15 @@ impl<'a> PopupRender for CommandRunnerPopup<'a> {
 }
 
 impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
+    fn check_auto_close(&mut self) -> Action {
+        if self.auto_close && self.results.is_some() {
+            self.auto_close = false;
+            Action::CommandsDone((self.command_type, self.results.take().unwrap()))
+        } else {
+            Action::Pass
+        }
+    }
+
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
             KeyCode::Up | KeyCode::Char('k') => {
@@ -491,7 +490,6 @@ impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
                 };
             }
             KeyCode::Esc => {
-                // or self.results.is_some()
                 return if self.results.is_some() {
                     Action::CommandsDone((self.command_type, self.results.take().unwrap()))
                 } else {
