@@ -1,14 +1,13 @@
-
 pub struct Table {
     pub headers: Vec<String>,
     pub lines: Vec<Vec<String>>,
 }
 
 impl Table {
-    pub fn new<'a, S: 'a, T, U>(data: T, headers: &[U]) -> Self
+    pub fn new<'a, S, T, U>(data: T, headers: &[U]) -> Self
     where
         T: IntoIterator<Item = &'a [S]>,
-        S: AsRef<str>,
+        S: AsRef<str> + 'a,
         U: AsRef<str>,
     {
         let headers: Vec<String> = headers.iter().map(|e| e.as_ref().to_string()).collect();

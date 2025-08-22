@@ -173,7 +173,7 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             println!("SUBS");
             if let Some(group_no) = group_no {
                 let group = groups.get(group_no).unwrap();
-                print_groups(&[group.clone()], true);
+                print_groups(std::slice::from_ref(group), true);
                 (Some(group.clone()), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();
@@ -187,7 +187,7 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             println!("AUDIO");
             if let Some(group_no) = group_no {
                 let group = groups.get(group_no).unwrap();
-                print_groups(&[group.clone()], true);
+                print_groups(std::slice::from_ref(group), true);
                 (Some(group.clone()), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();

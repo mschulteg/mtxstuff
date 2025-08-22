@@ -1,6 +1,7 @@
 use crate::command::Command;
 use crate::file::{File, Flag, TrackType};
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Copy, Clone, PartialEq)]
 pub(crate) enum TrackOperation<'a> {
     SetForced(bool),
@@ -18,9 +19,12 @@ pub(crate) struct TrackOperations<'a> {
 
 impl<'a> TrackOperations<'a> {
     pub(crate) fn new(track_type: TrackType) -> Self {
-        TrackOperations { track_type, cmds: Default::default() }
+        TrackOperations {
+            track_type,
+            cmds: Default::default(),
+        }
     }
-    
+
     pub(crate) fn empty(&self) -> bool {
         !self.cmds.is_empty()
     }
@@ -77,27 +81,14 @@ impl<'a> TrackOperations<'a> {
                     // TODO: remove bool completely?
                     for track in tracks.iter() {
                         let value = get_track_id(track_no) == track.id;
-                        TrackOperations::set_flag(
-                            &mut arguments,
-                            track.id,
-                            Flag::Default,
-                            value,
-                        );
+                        TrackOperations::set_flag(&mut arguments, track.id, Flag::Default, value);
                     }
                 }
                 TrackOperation::SetTitle(val) => {
-                    TrackOperations::set_name(
-                        &mut arguments,
-                        get_track_id(track_no),
-                        val,
-                    );
+                    TrackOperations::set_name(&mut arguments, get_track_id(track_no), val);
                 }
                 TrackOperation::SetLang(val) => {
-                    TrackOperations::set_lang(
-                        &mut arguments,
-                        get_track_id(track_no),
-                        val,
-                    );
+                    TrackOperations::set_lang(&mut arguments, get_track_id(track_no), val);
                 }
             }
         }

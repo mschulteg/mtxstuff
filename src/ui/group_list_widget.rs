@@ -81,7 +81,7 @@ impl GroupListWidget {
         let groupnames_items: Vec<_> = (0..self.num_groups)
             .map(|idx| {
                 ListItem::new(Line::from(vec![Span::styled(
-                    format!("Group #{}", idx.to_string()),
+                    format!("Group #{}", idx),
                     Style::default(),
                 )]))
             })

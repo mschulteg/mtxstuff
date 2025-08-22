@@ -165,11 +165,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 use unicode_width::UnicodeWidthStr;
 
 fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
-    let height_rest = if r.height >= height_y {
-        r.height - height_y
-    } else {
-        0
-    };
+    let height_rest = r.height.saturating_sub(height_y);
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -197,13 +193,9 @@ fn centered_rect_with_height(percent_x: u16, height_y: u16, r: Rect) -> Rect {
 
 fn centered_rect_fit_text(text: &str, margin_x: u16, margin_y: u16, r: Rect) -> Rect {
     let height = text.matches('\n').count() as u16 + 3 + margin_y * 2;
-    let height_rest = if r.height >= height {
-        r.height - height
-    } else {
-        0
-    };
+    let height_rest = r.height.saturating_sub(height);
     let width = text.split('\n').map(|str| str.width()).max().unwrap() as u16 + 2 + margin_x * 2;
-    let width_rest = if r.width >= width { r.width - width } else { 0 };
+    let width_rest = r.width.saturating_sub(width);
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -512,7 +504,7 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let menu_titles = vec!["Info", "Subs", "Audio", "Quit"];
+    let menu_titles = ["Info", "Subs", "Audio", "Quit"];
     let mut active_menu_item = MenuItem::Home;
     'outer: loop {
         let groups_subs = groupby(&files, key_sublang_subname);

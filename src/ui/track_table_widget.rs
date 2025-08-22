@@ -228,7 +228,7 @@ impl TrackTableWidget {
             .iter()
             .enumerate()
             .map(|(idx_row, keyrow)| {
-                Row::new((0..5).into_iter().map(|idx_col| {
+                Row::new((0..5).map(|idx_col| {
                     let item = idx_col_to_string(keyrow, idx_col);
                     let text = if let Some(ref item) = item {
                         item.clone()

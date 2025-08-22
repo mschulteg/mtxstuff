@@ -87,8 +87,7 @@ impl CommandPopup {
         let commands: Vec<Command> = commands.into_iter().collect();
         let command_strings: Vec<_> = commands
             .iter()
-            .map(|cmd| cmd.to_cmd_string())
-            .flatten()
+            .filter_map(|cmd| cmd.to_cmd_string())
             .collect();
         CommandPopup {
             commands,
