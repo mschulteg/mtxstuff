@@ -5,7 +5,6 @@ mod table;
 mod track_operations;
 mod ui;
 
-use crate::command::Command;
 use crate::file::{File, TrackType};
 use crate::group::{groupby, key_audlang_audname, key_sublang_subname, print_groups};
 use crate::track_operations::{TrackOperation, TrackOperations};
@@ -23,49 +22,55 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
     files
 }
 
-use clap::{App, AppSettings, Arg};
+use clap::{Arg, ArgAction, Command};
 
 fn main() -> anyhow::Result<()> {
-    let arg_directory = Arg::with_name("directory")
+    let arg_directory = Arg::new("directory")
         .help("Path to directory")
         .required(true);
-    let arg_group = Arg::with_name("group")
+    let arg_group = Arg::new("group")
         .help("Path to directory")
         .required(false)
-        .takes_value(true)
-        .long("group");
-    let arg_track = Arg::with_name("track")
+        .value_name("GROUP")
+        .long("group")
+        .action(ArgAction::Set);
+    let arg_track = Arg::new("track")
         .help("Track number of the selected group")
         .required(false)
-        .takes_value(true)
-        .long("track");
-    let arg_default = Arg::with_name("set-default")
+        .value_name("TRACK")
+        .long("track")
+        .action(ArgAction::Set);
+    let arg_default = Arg::new("set-default")
         .help("Set the track with the specified number as default")
         .required(false)
-        .takes_value(true)
-        .long("set-default");
-    let arg_default_ex = Arg::with_name("set-default-ex")
+        .value_name("TRACK")
+        .long("set-default")
+        .action(ArgAction::Set);
+    let arg_default_ex = Arg::new("set-default-ex")
         .help("Set the track with the specified number as exclusive default")
         .required(false)
-        .takes_value(true)
-        .long("set-default-ex");
-    let arg_forced = Arg::with_name("set-forced")
+        .value_name("TRACK")
+        .long("set-default-ex")
+        .action(ArgAction::Set);
+    let arg_forced = Arg::new("set-forced")
         .help("Set the track with the specified number as forced")
         .required(false)
-        .takes_value(true)
-        .long("set-forced");
-    let arg_enabled = Arg::with_name("set-enabled")
+        .value_name("TRACK")
+        .long("set-forced")
+        .action(ArgAction::Set);
+    let arg_enabled = Arg::new("set-enabled")
         .help("Set the track with the specified number as enabled")
         .required(false)
-        .takes_value(true)
-        .long("set-enabled");
-    let matches = App::new("mtxtesto")
-        .setting(AppSettings::GlobalVersion)
-        .version("1.0")
+        .value_name("TRACK")
+        .long("set-enabled")
+        .action(ArgAction::Set);
+    let matches = Command::new("mtxstuff")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Moritz Schulte")
-        .about("mtxtesto")
+        .about("mtxstuff")
+        .propagate_version(true)
         .subcommand(
-            App::new("subs")
+            Command::new("subs")
                 .about("controls testing features")
                 .arg(&arg_directory)
                 .arg(&arg_group)
@@ -76,7 +81,7 @@ fn main() -> anyhow::Result<()> {
                 .arg(&arg_default),
         )
         .subcommand(
-            App::new("audio")
+            Command::new("audio")
                 .about("controls testing features")
                 .arg(&arg_directory)
                 .arg(&arg_group)
@@ -87,14 +92,14 @@ fn main() -> anyhow::Result<()> {
                 .arg(&arg_default),
         )
         .subcommand(
-            App::new("tui")
+            Command::new("tui")
                 .about("controls testing features")
                 .arg(&arg_directory),
         )
         .get_matches();
 
     let (sub_name, sub_matches) = match matches.subcommand() {
-        (name, Some(sub_m)) => (name, sub_m),
+        Some((name, sub_m)) => (name, sub_m),
         _ => {
             println!("No subcommand provided, exiting.");
             return Ok(());
@@ -111,7 +116,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let path = sub_matches.value_of("directory");
+    let path = sub_matches.get_one::<String>("directory");
     let path = PathBuf::from(path.unwrap());
     let paths = get_files_recursively(&path);
     let files: anyhow::Result<Vec<File>> = paths
@@ -133,25 +138,25 @@ fn main() -> anyhow::Result<()> {
 
 fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
     let group_no = sub_matches
-        .value_of("group")
+        .get_one::<String>("group")
         .and_then(|o| o.parse::<usize>().ok());
     let track_no = sub_matches
-        .value_of("track")
+        .get_one::<String>("track")
         .and_then(|o| o.parse::<i64>().ok());
     let set_default_value = sub_matches
-        .value_of("set-default")
+        .get_one::<String>("set-default")
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
     let set_default_ex_value = sub_matches
-        .value_of("set-default-ex")
+        .get_one::<String>("set-default-ex")
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
     let set_forced_value = sub_matches
-        .value_of("set-forced")
+        .get_one::<String>("set-forced")
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
     let set_enabled_value = sub_matches
-        .value_of("set-enabled")
+        .get_one::<String>("set-enabled")
         .and_then(|o| o.parse::<i64>().ok())
         .map(|o| o != 0);
 
@@ -167,9 +172,9 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             let groups = groupby(&files, key_sublang_subname);
             println!("SUBS");
             if let Some(group_no) = group_no {
-                let group = groups.get(group_no).unwrap().clone();
+                let group = groups.get(group_no).unwrap();
                 print_groups(&[group.clone()], true);
-                (Some(group), groups)
+                (Some(group.clone()), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();
                 groups.iter().for_each(|group| files.extend(&group.files));
@@ -181,9 +186,9 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             let groups = groupby(&files, key_audlang_audname);
             println!("AUDIO");
             if let Some(group_no) = group_no {
-                let group = groups.get(group_no).unwrap().clone();
+                let group = groups.get(group_no).unwrap();
                 print_groups(&[group.clone()], true);
-                (Some(group), groups)
+                (Some(group.clone()), groups)
             } else {
                 let mut files: Vec<&File> = Vec::new();
                 groups.iter().for_each(|group| files.extend(&group.files));
@@ -226,7 +231,7 @@ fn cli_mode(files: Vec<File>, sub_name: &str, sub_matches: &clap::ArgMatches) {
             return;
         }
         // Generate and run commands
-        let mut commands: Vec<Command> = sel_group
+        let mut commands: Vec<crate::command::Command> = sel_group
             .files
             .iter()
             .map(|file| track_ops.generate_command(file))
