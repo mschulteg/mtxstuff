@@ -336,47 +336,49 @@ impl<'a> CommandRunnerPopup<'a> {
                     for res in results.into_iter() {
                         match res {
                             Ok(command) => {
-                                self.log.extend(Text::styled(
-                                    format!("Command: {:}\n", command.to_cmd_string().unwrap()),
+                                self.log.push_line(Line::from(Span::styled(
+                                    format!("Command: {:}", command.to_cmd_string().unwrap()),
                                     Style::default().add_modifier(Modifier::BOLD),
-                                ));
+                                )));
                                 let output = command.output.as_ref().expect("command has executed");
                                 if !output.status.success() {
                                     self.error = true;
                                     // TODO - get rid of the clones
-                                    self.log.extend(Text::styled(
+                                    self.log.push_line(Line::from(Span::styled(
                                         command.success_string(),
                                         Style::default().fg(Color::Red),
-                                    ));
+                                    )));
                                     if !output.stdout.is_empty() {
-                                        self.log.extend(Text::raw("Command output (stdout) is:"));
-                                        self.log.extend(Text::styled(
+                                        self.log
+                                            .push_line(Line::from("Command output (stdout) is:"));
+                                        self.log.push_line(Line::from(Span::styled(
                                             output.stdout.clone(),
                                             Style::default().fg(Color::DarkGray),
-                                        ));
+                                        )));
                                     }
                                     if !output.stderr.is_empty() {
-                                        self.log.extend(Text::raw("Command output (stderr) is:"));
-                                        self.log.extend(Text::styled(
+                                        self.log
+                                            .push_line(Line::from("Command output (stderr) is:"));
+                                        self.log.push_line(Line::from(Span::styled(
                                             output.stderr.clone(),
                                             Style::default().fg(Color::DarkGray),
-                                        ));
+                                        )));
                                     }
                                 } else {
-                                    self.log.extend(Text::styled(
+                                    self.log.push_line(Line::from(Span::styled(
                                         command.success_string(),
                                         Style::default().fg(Color::Green),
-                                    ));
+                                    )));
                                 }
-                                self.log.extend(Text::raw("\n"));
+                                self.log.push_line(Line::from(""));
                                 // put command in results
                                 done_commands.push(command);
                             }
                             Err(err) => {
-                                self.log.extend(Text::styled(
+                                self.log.push_line(Line::from(Span::styled(
                                     format!("Failed to execute process: {:}", err),
                                     Style::default().fg(Color::Red),
-                                ));
+                                )));
                                 self.error = true;
                                 break;
                             }
