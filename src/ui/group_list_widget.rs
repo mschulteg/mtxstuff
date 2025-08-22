@@ -1,15 +1,15 @@
 use super::FocusState;
-use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
+use crate::ui::selectable_state::SelectableState;
 use crossterm::event::KeyCode;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
-    Frame,
 };
 
 #[derive(Clone, Default)]

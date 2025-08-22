@@ -2,11 +2,11 @@ use crate::command::Command;
 use crate::command::CommandHandler;
 use crate::command::CommandHandlerStatus;
 
-use super::centered_rect_fit_text;
 use super::Action;
 use super::CommandType;
 use super::FocusState;
 use super::KeyPressConsumer;
+use super::centered_rect_fit_text;
 use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
 use ratatui::layout::Alignment;
@@ -16,11 +16,11 @@ use ratatui::widgets::Gauge;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders},
-    Frame,
 };
 use std::fs::File;
 use std::io::prelude::*;
@@ -168,7 +168,7 @@ impl KeyPressConsumer for CommandPopup {
             KeyCode::Enter => match self.to_file() {
                 Ok(_) => return Action::ShowMessage("Commands were saved".to_string()),
                 Err(err) => {
-                    return Action::ShowMessage(format!("Commands could not be saved: {}", err))
+                    return Action::ShowMessage(format!("Commands could not be saved: {}", err));
                 }
             },
             _ => {}
@@ -450,7 +450,7 @@ impl<'a> KeyPressConsumer for CommandRunnerPopup<'a> {
                     Action::CommandsDone((self.command_type, self.results.take().unwrap()))
                 } else {
                     Action::Pass
-                }
+                };
             }
             _ => {}
         }

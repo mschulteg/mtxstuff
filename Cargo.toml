@@ -2,7 +2,7 @@
 name = "mtxstuff"
 version = "0.2.3"
 authors = ["Moritz Schulte <mschulte.g@gmail.com>"]
-edition = "2021"
+edition = "2024"
 description = "Tool to edit audio and subtitle track flags on mkv files"
 readme = "README.md"
 publish = false

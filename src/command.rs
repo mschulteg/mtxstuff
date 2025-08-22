@@ -108,16 +108,18 @@ impl CommandHandler {
             mpsc::Sender<std::io::Result<Command>>,
             mpsc::Receiver<std::io::Result<Command>>,
         ) = mpsc::channel();
-        let command_thread = thread::spawn(move || loop {
-            let task = rx_cmd.recv();
-            match task {
-                Ok(mut command) => {
-                    match command.run() {
-                        Ok(_) => tx_res.send(Ok(command)).unwrap(),
-                        Err(err) => tx_res.send(Err(err)).unwrap(),
-                    };
+        let command_thread = thread::spawn(move || {
+            loop {
+                let task = rx_cmd.recv();
+                match task {
+                    Ok(mut command) => {
+                        match command.run() {
+                            Ok(_) => tx_res.send(Ok(command)).unwrap(),
+                            Err(err) => tx_res.send(Err(err)).unwrap(),
+                        };
+                    }
+                    Err(_) => break, // producer is gone, we are done,
                 }
-                Err(_) => break, // producer is gone, we are done,
             }
         });
         let num_commands = commands.len();

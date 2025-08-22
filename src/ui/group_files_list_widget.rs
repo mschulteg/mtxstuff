@@ -1,16 +1,16 @@
 use super::FocusState;
 use crate::group::Group;
-use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
+use crate::ui::selectable_state::SelectableState;
 use crossterm::event::KeyCode;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
-    Frame,
 };
 
 #[derive(Clone, Default)]
@@ -23,10 +23,10 @@ impl KeyPressConsumer for GroupFilesListWidget {
     fn process_key(&mut self, key_code: crossterm::event::KeyCode) -> Action {
         match key_code {
             KeyCode::Up | KeyCode::Char('k') => {
-                if let Some(down_res) = self.navigate_up() {
-                    if !down_res {
-                        return Action::NavigateBackward(ActiveWidget::Files);
-                    }
+                if let Some(down_res) = self.navigate_up()
+                    && !down_res
+                {
+                    return Action::NavigateBackward(ActiveWidget::Files);
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {

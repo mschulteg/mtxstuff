@@ -1,9 +1,9 @@
 use super::FocusState;
 use crate::group::{Group, GroupKey};
-use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
+use crate::ui::selectable_state::SelectableState;
 
 use crossterm::event::KeyCode;
 use ratatui::layout::Constraint;
@@ -11,11 +11,11 @@ use ratatui::widgets::Cell;
 use ratatui::widgets::Row;
 use ratatui::widgets::Table;
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Span,
     widgets::{Block, BorderType, Borders, TableState},
-    Frame,
 };
 
 #[derive(Clone, Default)]
@@ -33,10 +33,10 @@ impl KeyPressConsumer for TrackTableWidget {
                 self.navigate_up();
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                if let Some(down_res) = self.navigate_down() {
-                    if !down_res {
-                        return Action::NavigateForward(ActiveWidget::Details);
-                    }
+                if let Some(down_res) = self.navigate_down()
+                    && !down_res
+                {
+                    return Action::NavigateForward(ActiveWidget::Details);
                 }
             }
             KeyCode::Right | KeyCode::Char('l') => {
@@ -205,13 +205,14 @@ impl TrackTableWidget {
 
         let create_style = |item: Option<&str>, idx_col: usize, idx_row: usize| {
             let mut style = Style::default();
-            if let Some(sel_col) = self.selected_col {
-                if sel_col == idx_col && self.selected().unwrap() == idx_row {
-                    style = style
-                        .bg(focus.sel_color())
-                        .fg(Color::Black)
-                        .add_modifier(Modifier::BOLD);
-                }
+            if let Some(sel_col) = self.selected_col
+                && sel_col == idx_col
+                && self.selected().unwrap() == idx_row
+            {
+                style = style
+                    .bg(focus.sel_color())
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD);
             }
             let keyrow = self.keys_orig.get(idx_row).unwrap();
             if idx_col_to_string(keyrow, idx_col).as_deref() != item {

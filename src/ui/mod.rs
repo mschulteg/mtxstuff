@@ -20,16 +20,16 @@ use super::ui::track_table_widget::TrackTableWidget;
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::Frame;
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph, Tabs},
-    Terminal,
 };
 use std::io;
 use std::sync::mpsc;
@@ -486,10 +486,10 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
                 .checked_sub(last_tick.elapsed())
                 .unwrap_or_else(|| Duration::from_secs(0));
 
-            if event::poll(timeout).expect("poll works") {
-                if let CEvent::Key(key) = event::read().expect("can read events") {
-                    tx.send(Event::Input(key)).expect("can send events");
-                }
+            if event::poll(timeout).expect("poll works")
+                && let CEvent::Key(key) = event::read().expect("can read events")
+            {
+                tx.send(Event::Input(key)).expect("can send events");
             }
 
             if last_tick.elapsed() >= tick_rate && tx.send(Event::Tick).is_ok() {
@@ -651,7 +651,7 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
 }
 
 fn render_home() -> Paragraph<'static> {
-    let home = Paragraph::new(vec![
+    Paragraph::new(vec![
         Line::from(vec![Span::raw("")]),
         Line::from(vec![Span::raw("Welcome")]),
         Line::from(vec![Span::raw("")]),
@@ -674,6 +674,5 @@ fn render_home() -> Paragraph<'static> {
             .style(Style::default().fg(Color::White))
             .title("Home")
             .border_type(BorderType::Plain),
-    );
-    home
+    )
 }
