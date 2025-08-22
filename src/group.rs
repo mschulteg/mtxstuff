@@ -130,7 +130,7 @@ pub fn groupby(files: &[File], key_func: fn(&File) -> Vec<GroupKey>) -> Vec<Grou
     files_temp.sort_by_key(|ident| key_func(ident));
 
     let mut groups = Vec::<Group>::new();
-    for (key, group) in &files_temp.into_iter().group_by(|elt| key_func(elt)) {
+    for (key, group) in &files_temp.into_iter().chunk_by(|elt| key_func(elt)) {
         groups.push(Group {
             key,
             files: group.collect(),
