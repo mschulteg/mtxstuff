@@ -20,5 +20,5 @@ unicode-width = "0.1"
 anyhow = "1.0"
 which = "4.2.2"
 
-crossterm = { version = "0.20", features = [ "serde" ] }
-tui = { version = "0.16", default-features = false, features = ['crossterm', 'serde'] }
+crossterm = { version = "0.28", features = [ "serde" ] }
+ratatui = { version = "0.29", default-features = false, features = ['crossterm', 'serde'] }

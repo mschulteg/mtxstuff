@@ -22,19 +22,19 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::io::{self, Stdout};
-use std::sync::mpsc;
-use std::thread;
-use std::time::{Duration, Instant};
-use tui::Frame;
-use tui::{
+use ratatui::Frame;
+use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph, Tabs},
     Terminal,
 };
+use std::io;
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 const SEL_COLOR: Color = Color::Cyan;
 
@@ -439,7 +439,7 @@ impl<'a> GroupTabData<'a> {
             .and_then(|selected| self.groups.get(selected))
     }
 
-    fn render(&mut self, frame: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+    fn render(&mut self, frame: &mut Frame, area: Rect) {
         let horiz_split = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
@@ -526,7 +526,7 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
 
         let mut changed_files = 'inner: loop {
             terminal.draw(|rect| {
-                let size = rect.size();
+                let size = rect.area();
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .margin(2)
@@ -553,11 +553,11 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
                         .border_type(BorderType::Plain),
                 );
 
-                let menu = menu_titles
+                let menu: Vec<Line> = menu_titles
                     .iter()
                     .map(|t| {
                         let (first, rest) = t.split_at(1);
-                        Spans::from(vec![
+                        Line::from(vec![
                             Span::styled(
                                 first,
                                 Style::default()
@@ -570,7 +570,7 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
                     .collect();
 
                 let tabs = Tabs::new(menu)
-                    .select(active_menu_item.into())
+                    .select::<usize>(active_menu_item.into())
                     .block(Block::default().title("Menu").borders(Borders::ALL))
                     .style(Style::default().fg(Color::White))
                     .highlight_style(Style::default().fg(SEL_COLOR))
@@ -658,22 +658,22 @@ pub fn main_loop(mut files: Vec<File>) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-fn render_home<'a>() -> Paragraph<'a> {
+fn render_home() -> Paragraph<'static> {
     let home = Paragraph::new(vec![
-        Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::raw("Welcome")]),
-        Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::raw("to")]),
-        Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::styled(
-            "mtxstuff alpha",
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("Welcome")]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("to")]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::styled(
+            "mtxstuff",
             Style::default().fg(Color::LightBlue),
         )]),
-        Spans::from(vec![Span::raw("")]),
-        Spans::from(vec![Span::raw("Press 'S' to access Subtitle view, 'A' to access audio track view.")]),
-        Spans::from(vec![Span::raw("Files are scanned and put into groups that share the same track metadata (name, lang, flags).")]),
-        Spans::from(vec![Span::raw("This makes it easy to change metadata on multiple files that share the same general track list shape.")]),
-        Spans::from(vec![Span::raw("Changes are applied to all files in a group!")]),
+        Line::from(vec![Span::raw("")]),
+        Line::from(vec![Span::raw("Press 'S' to access Subtitle view, 'A' to access audio track view.")]),
+        Line::from(vec![Span::raw("Files are scanned and put into groups that share the same track metadata (name, lang, flags).")]),
+        Line::from(vec![Span::raw("This makes it easy to change metadata on multiple files that share the same general track list shape.")]),
+        Line::from(vec![Span::raw("Changes are applied to all files in a group!")]),
     ])
     .alignment(Alignment::Center)
     .block(

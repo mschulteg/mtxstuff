@@ -1,14 +1,14 @@
+use super::FocusState;
 use crate::group::Group;
 use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
-use super::FocusState;
 use crossterm::event::KeyCode;
-use tui::{
+use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
@@ -85,18 +85,13 @@ impl GroupFilesListWidget {
         }
     }
 
-    pub(crate) fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         // Group files
         let group_files_items: Vec<_> = self
             .file_names
             .iter()
             .map(|file_name| {
-                ListItem::new(Spans::from(vec![Span::styled(
+                ListItem::new(Line::from(vec![Span::styled(
                     file_name.clone(),
                     Style::default(),
                 )]))

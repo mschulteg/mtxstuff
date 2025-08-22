@@ -1,13 +1,13 @@
+use super::FocusState;
 use crate::ui::selectable_state::SelectableState;
 use crate::ui::Action;
 use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
-use super::FocusState;
 use crossterm::event::KeyCode;
-use tui::{
+use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
@@ -25,7 +25,7 @@ impl KeyPressConsumer for GroupListWidget {
                 self.navigate_up();
                 return Action::LoadGroup;
             }
-            KeyCode::Down | KeyCode::Char('j')=> {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.navigate_down();
                 return Action::LoadGroup;
             }
@@ -69,12 +69,7 @@ impl GroupListWidget {
     }
 
     //TODO: remove groups, maybe keep a copy
-    pub(crate) fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let border_style = Style::default().fg(focus.border_color());
         let groupnames_block = Block::default()
             .borders(Borders::ALL)
@@ -85,7 +80,7 @@ impl GroupListWidget {
 
         let groupnames_items: Vec<_> = (0..self.num_groups)
             .map(|idx| {
-                ListItem::new(Spans::from(vec![Span::styled(
+                ListItem::new(Line::from(vec![Span::styled(
                     format!("Group #{}", idx.to_string()),
                     Style::default(),
                 )]))

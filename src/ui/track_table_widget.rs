@@ -6,11 +6,11 @@ use crate::ui::ActiveWidget;
 use crate::ui::KeyPressConsumer;
 
 use crossterm::event::KeyCode;
-use tui::layout::Constraint;
-use tui::widgets::Cell;
-use tui::widgets::Row;
-use tui::widgets::Table;
-use tui::{
+use ratatui::layout::Constraint;
+use ratatui::widgets::Cell;
+use ratatui::widgets::Row;
+use ratatui::widgets::Table;
+use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Span,
@@ -175,12 +175,7 @@ impl TrackTableWidget {
         &mut self.keys_copy
     }
 
-    pub(crate) fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let highlight_style = Style::default()
             .bg(focus.sel_color())
             .fg(Color::Black)
@@ -247,7 +242,16 @@ impl TrackTableWidget {
             .collect();
         let border_style = Style::default().fg(focus.border_color());
 
-        let group_detail = Table::new(group_detail_rows);
+        let group_detail = Table::new(
+            group_detail_rows,
+            &[
+                Constraint::Min(10),
+                Constraint::Min(30),
+                Constraint::Min(5),
+                Constraint::Min(5),
+                Constraint::Min(5),
+            ],
+        );
         let group_detail = group_detail
             .header(Row::new(vec![
                 Cell::from(Span::styled(
@@ -279,19 +283,12 @@ impl TrackTableWidget {
                     .border_type(BorderType::Plain)
                     .border_style(border_style),
             )
-            .widths(&[
-                Constraint::Min(10),
-                Constraint::Min(30),
-                Constraint::Min(5),
-                Constraint::Min(5),
-                Constraint::Min(5),
-            ])
             .column_spacing(1)
-            .highlight_style(highlight_style);
+            .row_highlight_style(highlight_style);
 
         // disable default highlighting if we want to highlight a single item
         let group_detail = if self.selected_col.is_some() {
-            group_detail.highlight_style(Style::default())
+            group_detail.row_highlight_style(Style::default())
         } else {
             group_detail
         };

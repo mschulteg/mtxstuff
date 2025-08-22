@@ -9,32 +9,25 @@ use super::FocusState;
 use super::KeyPressConsumer;
 use super::{centered_rect, centered_rect_with_height};
 use crossterm::event::KeyCode;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::Stdout;
-use tui::layout::Alignment;
-use tui::text::Text;
-use tui::widgets::Clear;
-use tui::widgets::Gauge;
-use tui::widgets::Paragraph;
-use tui::widgets::Wrap;
-use tui::{
-    backend::CrosstermBackend,
+use ratatui::layout::Alignment;
+use ratatui::text::Text;
+use ratatui::widgets::Clear;
+use ratatui::widgets::Gauge;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Wrap;
+use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders},
     Frame,
 };
+use std::fs::File;
+use std::io::prelude::*;
 
 // TODO: Frame<B: Backend>
 pub(crate) trait PopupRender {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    );
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState);
 }
 
 pub(crate) trait Popup: PopupRender + KeyPressConsumer {}
@@ -60,12 +53,7 @@ impl PopupRenderer {
 }
 
 impl PopupRender for PopupRenderer {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let stack_len = self.popup_stack.len();
         for (i, popup) in self.popup_stack.iter_mut().enumerate() {
             let focus = if focus == FocusState::Highlight && i == stack_len - 1 {
@@ -109,12 +97,7 @@ impl CommandPopup {
         }
     }
 
-    fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let border_style = Style::default().fg(focus.border_color());
         let block = Block::default()
             .borders(Borders::ALL)
@@ -126,11 +109,11 @@ impl CommandPopup {
             .border_type(BorderType::Thick)
             .border_style(border_style);
 
-        let text: Vec<Spans> = self
+        let text: Vec<Line> = self
             .command_strings
             .iter()
             .map(AsRef::as_ref)
-            .map(Spans::from)
+            .map(Line::from)
             .collect();
         // text[0]
         //     .0
@@ -159,12 +142,7 @@ impl CommandPopup {
 }
 
 impl PopupRender for CommandPopup {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         self.render(frame, area, focus);
     }
 }
@@ -208,15 +186,10 @@ pub(crate) struct EditPopup {
 use unicode_width::UnicodeWidthStr;
 
 impl EditPopup {
-    fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let area = centered_rect_with_height(50, 3, area);
         let border_style = Style::default().fg(focus.border_color());
-        let input = Paragraph::new(self.input.as_ref())
+        let input = Paragraph::new(self.input.as_str())
             .style(Style::default().fg(Color::White))
             .block(
                 Block::default()
@@ -225,24 +198,19 @@ impl EditPopup {
                     .border_type(BorderType::Thick)
                     .border_style(border_style),
             );
-        frame.set_cursor(
+        frame.set_cursor_position((
             // Put cursor past the end of the input text
             area.x + self.input.width() as u16 + 1,
             // Move one line down, from the border to the input line
             area.y + 1,
-        );
+        ));
         frame.render_widget(Clear, area);
         frame.render_widget(input, area);
     }
 }
 
 impl PopupRender for EditPopup {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         self.render(frame, area, focus);
     }
 }
@@ -274,20 +242,15 @@ pub(crate) struct MessagePopup {
 }
 
 impl MessagePopup {
-    fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let margin_y = 2;
         let area = centered_rect_fit_text(self.message.as_ref(), 2, margin_y, area);
-        let mut spans = Vec::<Spans>::new();
+        let mut spans = Vec::<Line>::new();
         for _ in 0..margin_y {
             // add empty lines to vertically center text
-            spans.push(Spans::from(vec![Span::raw("")]));
+            spans.push(Line::from(vec![Span::raw("")]));
         }
-        spans.push(Spans::from(vec![Span::raw(&self.message)]));
+        spans.push(Line::from(vec![Span::raw(&self.message)]));
         //let input = Paragraph::new(self.message.as_ref())
         let border_style = Style::default().fg(focus.border_color());
         let input = Paragraph::new(spans)
@@ -305,12 +268,7 @@ impl MessagePopup {
 }
 
 impl PopupRender for MessagePopup {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         self.render(frame, area, focus);
     }
 }
@@ -352,12 +310,7 @@ impl<'a> CommandRunnerPopup<'a> {
         }
     }
 
-    fn render<B: tui::backend::Backend>(
-        &mut self,
-        frame: &mut Frame<B>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         let border_style = Style::default().fg(focus.border_color());
         if let Some(mut command_handler) = self.command_handler.take() {
             match command_handler.check() {
@@ -457,12 +410,7 @@ impl<'a> CommandRunnerPopup<'a> {
 }
 
 impl<'a> PopupRender for CommandRunnerPopup<'a> {
-    fn render_widget(
-        &mut self,
-        frame: &mut Frame<CrosstermBackend<Stdout>>,
-        area: Rect,
-        focus: FocusState,
-    ) {
+    fn render_widget(&mut self, frame: &mut Frame, area: Rect, focus: FocusState) {
         self.render(frame, area, focus);
     }
 }
