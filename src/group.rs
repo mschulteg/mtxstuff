@@ -1,8 +1,8 @@
-use itertools::Itertools;
-use super::table::Table;
-use super::file::{File, TrackType};
 use super::command::Command;
+use super::file::{File, TrackType};
+use super::table::Table;
 use crate::track_operations::{TrackOperation, TrackOperations};
+use itertools::Itertools;
 
 pub fn key_sublang_subname(file: &File) -> Vec<GroupKey> {
     file.subtitle_tracks
@@ -23,14 +23,12 @@ pub fn key_sublang_subname(file: &File) -> Vec<GroupKey> {
 pub fn key_audlang_audname(file: &File) -> Vec<GroupKey> {
     file.audio_tracks
         .iter()
-        .map(|track| {
-            GroupKey {
-                language: track.language.clone(),
-                name: track.name.clone(),
-                default: track.default,
-                forced: track.forced,
-                enabled: track.enabled,
-            }
+        .map(|track| GroupKey {
+            language: track.language.clone(),
+            name: track.name.clone(),
+            default: track.default,
+            forced: track.forced,
+            enabled: track.enabled,
         })
         .collect()
 }
@@ -41,28 +39,44 @@ pub struct Group<'a> {
     pub files: Vec<&'a File>,
 }
 
-impl <'a>Group<'a>{
-    pub fn apply_changes(&self, keys: &[GroupKey], track_type: TrackType) -> Vec<Command>{
+impl<'a> Group<'a> {
+    pub fn apply_changes(&self, keys: &[GroupKey], track_type: TrackType) -> Vec<Command> {
         let mut ops = TrackOperations::new(track_type);
-        self.key.iter().zip(keys.iter()).enumerate().for_each(|(idx,(cur, changed))| {
-            if cur == changed {return};
-            if cur.language != changed.language {
-                ops.add(idx as i64, TrackOperation::SetLang(changed.language.as_deref()))
-            }
-            if cur.name != changed.name {
-                ops.add(idx as i64, TrackOperation::SetTitle(changed.name.as_deref()))
-            }
-            if cur.default != changed.default {
-                ops.add(idx as i64, TrackOperation::SetDefault(changed.default));
-            }
-            if cur.forced != changed.forced {
-                ops.add(idx as i64, TrackOperation::SetForced(changed.forced));
-            }
-            if cur.enabled != changed.enabled {
-                ops.add(idx as i64, TrackOperation::SetEnabled(changed.enabled));
-            }
-        });
-        let cmds: Vec<_> = self.files.iter().map(|file| ops.generate_command(file)).collect();
+        self.key
+            .iter()
+            .zip(keys.iter())
+            .enumerate()
+            .for_each(|(idx, (cur, changed))| {
+                if cur == changed {
+                    return;
+                };
+                if cur.language != changed.language {
+                    ops.add(
+                        idx as i64,
+                        TrackOperation::SetLang(changed.language.as_deref()),
+                    )
+                }
+                if cur.name != changed.name {
+                    ops.add(
+                        idx as i64,
+                        TrackOperation::SetTitle(changed.name.as_deref()),
+                    )
+                }
+                if cur.default != changed.default {
+                    ops.add(idx as i64, TrackOperation::SetDefault(changed.default));
+                }
+                if cur.forced != changed.forced {
+                    ops.add(idx as i64, TrackOperation::SetForced(changed.forced));
+                }
+                if cur.enabled != changed.enabled {
+                    ops.add(idx as i64, TrackOperation::SetEnabled(changed.enabled));
+                }
+            });
+        let cmds: Vec<_> = self
+            .files
+            .iter()
+            .map(|file| ops.generate_command(file))
+            .collect();
         cmds
     }
 }
@@ -103,7 +117,6 @@ impl GroupKey {
     }
 }
 
-
 pub fn print_groupkeys(keys: &[GroupKey]) {
     let data: Vec<Vec<String>> = keys.iter().map(|gk| gk.row()).collect();
     let mut table = Table::new(data.iter().map(AsRef::as_ref), &keys[0].headers());
@@ -112,7 +125,7 @@ pub fn print_groupkeys(keys: &[GroupKey]) {
     table.print();
 }
 
-pub fn groupby(files: &[File], key_func: fn(&File) -> Vec<GroupKey>) -> Vec<Group> {
+pub fn groupby(files: &[File], key_func: fn(&File) -> Vec<GroupKey>) -> Vec<Group<'_>> {
     let mut files_temp: Vec<&File> = files.iter().collect();
     files_temp.sort_by_key(|ident| key_func(ident));
 
@@ -133,7 +146,7 @@ pub fn print_groups(groups: &[Group], selected: bool) {
             println!("---Group {}---", idx);
         }
         println!("Keys for this group are:");
-        if !group.key.is_empty(){
+        if !group.key.is_empty() {
             print_groupkeys(&group.key);
         } else {
             println!("Empty");

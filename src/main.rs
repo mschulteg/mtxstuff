@@ -25,7 +25,7 @@ fn get_files_recursively(path: &Path) -> Vec<PathBuf> {
 
 use clap::{App, AppSettings, Arg};
 
-fn main() -> anyhow::Result<()>{
+fn main() -> anyhow::Result<()> {
     let arg_directory = Arg::with_name("directory")
         .help("Path to directory")
         .required(true);
